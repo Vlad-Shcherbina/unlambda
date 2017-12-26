@@ -10,6 +10,8 @@ enum Term {
     S2(Rc<Term>, Rc<Term>),
     I,
     V,
+    D,
+    Promise(Rc<Term>),
     Print(char),
     Apply(Rc<Term>, Rc<Term>),
 }
@@ -25,6 +27,8 @@ impl ToString for Term {
             S2(ref x, ref y) => format!("s1({}, {})", x.to_string(), y.to_string()),
             I => String::from("i"),
             V => String::from("v"),
+            D => String::from("d"),
+            Promise(ref t) => format!("promise({})", t.to_string()),
             Print(c) => if c == '\n' { String::from("r") } else { format!(".{}", c) }
             Apply(ref f, ref x) => format!("`{}{}", f.to_string(), x.to_string()),
         }
@@ -39,6 +43,7 @@ fn parse(it: &mut Iterator<Item=char>) -> Term {
             's' => S,
             'i' => I,
             'v' => V,
+            'd' => D,
             '.' => Print(it.next().unwrap()),
             'r' => Print('\n'),
             '#' => {
@@ -60,31 +65,57 @@ fn parse_str(s: &str) -> Rc<Term> {
     Rc::new(result)
 }
 
+// Never returns Apply(...) term, so eval() is idempotent
+// (second call returns the same value and has no IO side effects).
 fn eval(term: Rc<Term>, io: &mut Write) -> Rc<Term> {
     if let Apply(ref f, ref x) = *term {
+        let f = eval(Rc::clone(f), io);
+        if let D = *f {
+            return Rc::new(Promise(Rc::clone(x)));
+        }
         return apply(
-            eval(Rc::clone(f), io),
+            f,
             eval(Rc::clone(x), io), io);
     }
     term
 }
 
+// Never returns Apply(...) term.
 fn apply(f: Rc<Term>, x: Rc<Term>, io: &mut Write) -> Rc<Term> {
+    if let Apply(_, _) = *f {
+        panic!();
+    }
+    if let Apply(_, _) = *x {
+        panic!();
+    }
     match *f {
         K => Rc::new(K1(x)),
         K1(ref y) => Rc::clone(y),
         S => Rc::new(S1(x)),
         S1(ref y) => Rc::new(S2(Rc::clone(y), x)),
+
+        // Seems a bit redundant, since x, y, and z are already evaluated.
+        // But we can't just write "apply(apply(y, x), apply(z, x))"
+        // because apply does not handle d as a special form.
+        // See example ```s`kdri in the documentation.
+        // eval() is idempotent, so repeated evaluation of x, y, z is fine.
         S2(ref y, ref z) =>
-            apply(
-                apply(Rc::clone(y), Rc::clone(&x), io),
-                apply(Rc::clone(z), Rc::clone(&x), io), io),
+            eval(Rc::new(Apply(
+                Rc::new(Apply(Rc::clone(y), Rc::clone(&x))),
+                Rc::new(Apply(Rc::clone(z), Rc::clone(&x))))), io),
+
         Print(c) => {
             io.write_fmt(format_args!("{}", c)).unwrap();
             x
         }
         I => x,
         V => Rc::clone(&f),  // TODO: ideally simply move f, but it's borrowed
+        D => panic!("should be handled in eval"),
+
+        // Similarly, apply(eval(f), x) instead of eval(`fx)
+        // is probably incorrect. What if f = Promise(D)?
+        Promise(ref f) => eval(Rc::new(Apply(Rc::clone(f), x)), io),
+
         _ => unimplemented!("{:?}", f),
     }
 }
@@ -132,5 +163,12 @@ mod tests {
         run_and_expect(
             "``````````````.H.e.l.l.o.,. .w.o.r.l.d.!rv",
             None, Some("Hello, world!\n"));
+
+        // From the documentation on d
+        run_and_expect("`d`ri", None, Some(""));
+        run_and_expect("``d`rii", None, Some("\n"));
+        run_and_expect("``dd`ri", None, Some("\n"));
+        run_and_expect("``id`ri", None, Some(""));
+        run_and_expect("```s`kdri", None, Some(""));
     }
 }
