@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::io::Write;
 
 #[derive(PartialEq, Eq, Debug)]
 enum Term {
@@ -51,15 +52,18 @@ fn parse_str(s: &str) -> Rc<Term> {
     Rc::new(result)
 }
 
-fn eval(term: Rc<Term>) -> Rc<Term> {
+fn eval(term: Rc<Term>, io: &mut Write) -> Rc<Term> {
     match *term {
-        Apply(ref f, ref x) => return apply(eval(f.clone()), eval(x.clone())),
+        Apply(ref f, ref x) =>
+            return apply(
+                eval(f.clone(), io),
+                eval(x.clone(), io), io),
         _ => ()
     }
     term
 }
 
-fn apply(f: Rc<Term>, x: Rc<Term>) -> Rc<Term> {
+fn apply(f: Rc<Term>, x: Rc<Term>, io: &mut Write) -> Rc<Term> {
     match *f {
         K => Rc::new(K1(x)),
         K1(ref y) => y.clone(),
@@ -67,10 +71,10 @@ fn apply(f: Rc<Term>, x: Rc<Term>) -> Rc<Term> {
         S1(ref y) => Rc::new(S2(y.clone(), x)),
         S2(ref y, ref z) =>
             apply(
-                apply(y.clone(), x.clone()),
-                apply(z.clone(), x.clone())),
+                apply(y.clone(), x.clone(), io),
+                apply(z.clone(), x.clone(), io), io),
         Print(c) => {
-            print!("{}", c);
+            io.write_fmt(format_args!("{}", c)).unwrap();
             x
         }
         _ => unimplemented!("{:?}", f),
@@ -78,7 +82,8 @@ fn apply(f: Rc<Term>, x: Rc<Term>) -> Rc<Term> {
 }
 
 fn main() {
-    let t = eval(parse_str("``````````````.H.e.l.l.o.,. .w.o.r.l.d.!rv"));
+    let program = parse_str("``````````````.H.e.l.l.o.,. .w.o.r.l.d.!rv");
+    let t = eval(program, &mut std::io::stdout());
     assert_eq!(t.to_string(), "v");
 }
 
@@ -93,6 +98,9 @@ mod tests {
 
     #[test]
     fn test_eval() {
-        assert_eq!(eval(parse_str("`.a``ksk")).to_string(), "s");
+        let mut buf = Vec::<u8>::new();
+        assert_eq!(eval(parse_str("`.a``ks.b"), &mut buf).to_string(), "s");
+        let buf = std::str::from_utf8(&buf).unwrap();
+        assert_eq!(buf, "a");
     }
 }
