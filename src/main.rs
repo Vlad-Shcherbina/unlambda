@@ -61,12 +61,10 @@ fn parse_str(s: &str) -> Rc<Term> {
 }
 
 fn eval(term: Rc<Term>, io: &mut Write) -> Rc<Term> {
-    match *term {
-        Apply(ref f, ref x) =>
-            return apply(
-                eval(f.clone(), io),
-                eval(x.clone(), io), io),
-        _ => ()
+    if let Apply(ref f, ref x) = *term {
+        return apply(
+            eval(Rc::clone(f), io),
+            eval(Rc::clone(x), io), io);
     }
     term
 }
@@ -74,19 +72,19 @@ fn eval(term: Rc<Term>, io: &mut Write) -> Rc<Term> {
 fn apply(f: Rc<Term>, x: Rc<Term>, io: &mut Write) -> Rc<Term> {
     match *f {
         K => Rc::new(K1(x)),
-        K1(ref y) => y.clone(),
+        K1(ref y) => Rc::clone(y),
         S => Rc::new(S1(x)),
-        S1(ref y) => Rc::new(S2(y.clone(), x)),
+        S1(ref y) => Rc::new(S2(Rc::clone(y), x)),
         S2(ref y, ref z) =>
             apply(
-                apply(y.clone(), x.clone(), io),
-                apply(z.clone(), x.clone(), io), io),
+                apply(Rc::clone(y), Rc::clone(&x), io),
+                apply(Rc::clone(z), Rc::clone(&x), io), io),
         Print(c) => {
             io.write_fmt(format_args!("{}", c)).unwrap();
             x
         }
         I => x,
-        V => f.clone(),
+        V => Rc::clone(&f),  // TODO: ideally simply move f, but it's borrowed
         _ => unimplemented!("{:?}", f),
     }
 }
