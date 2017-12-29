@@ -1,5 +1,23 @@
+#![feature(io)]
+
 use std::rc::Rc;
-use std::io::Write;
+use std::io::{Write, Read};
+
+struct Ctx<'a> {
+    output: &'a mut Write,
+    input: &'a mut Iterator<Item=char>,
+    cur_char: Option<char>,
+}
+
+impl<'a> Ctx<'a> {
+    fn new(output: &'a mut Write, input: &'a mut Iterator<Item=char>) -> Self {
+        Ctx {
+            output,
+            input,
+            cur_char: None,
+        }
+    }
+}
 
 // Err(t) means that the computation was prematurely terminated by `et.
 type EvalResult = Result<Rc<Term>, Rc<Term>>;
@@ -16,6 +34,9 @@ enum Term {
     D,
     Promise(Rc<Term>),
     Print(char),
+    Read,
+    CompareRead(char),
+    Reprint,
     E,
     Apply(Rc<Term>, Rc<Term>),
 }
@@ -34,6 +55,9 @@ impl ToString for Term {
             D => String::from("d"),
             Promise(ref t) => format!("promise({})", t.to_string()),
             Print(c) => if c == '\n' { String::from("r") } else { format!(".{}", c) }
+            Read => String::from("@"),
+            CompareRead(c) => format!("?{}", c),
+            Reprint => String::from("|"),
             E => String::from("e"),
             Apply(ref f, ref x) => format!("`{}{}", f.to_string(), x.to_string()),
         }
@@ -52,6 +76,9 @@ fn parse(it: &mut Iterator<Item=char>) -> Term {
             'e' => E,
             '.' => Print(it.next().unwrap()),
             'r' => Print('\n'),
+            '@' => Read,
+            '?' => CompareRead(it.next().unwrap()),
+            '|' => Reprint,
             '#' => {
                 while it.next().unwrap() != '\n' {}
                 continue;
@@ -73,21 +100,21 @@ fn parse_str(s: &str) -> Rc<Term> {
 
 // Never returns Apply(...) term, so eval() is idempotent
 // (second call returns the same value and has no IO side effects).
-fn eval(term: Rc<Term>, io: &mut Write) -> EvalResult {
+fn eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
     if let Apply(ref f, ref x) = *term {
-        let f = eval(Rc::clone(f), io)?;
+        let f = eval(Rc::clone(f), ctx)?;
         if let D = *f {
             return Ok(Rc::new(Promise(Rc::clone(x))));
         }
         return apply(
             f,
-            eval(Rc::clone(x), io)?, io);
+            eval(Rc::clone(x), ctx)?, ctx);
     }
     Ok(term)
 }
 
 // Never returns Apply(...) term.
-fn apply(f: Rc<Term>, x: Rc<Term>, io: &mut Write) -> EvalResult {
+fn apply(f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
     if let Apply(_, _) = *f {
         panic!();
     }
@@ -108,28 +135,55 @@ fn apply(f: Rc<Term>, x: Rc<Term>, io: &mut Write) -> EvalResult {
         S2(ref y, ref z) =>
             eval(Rc::new(Apply(
                 Rc::new(Apply(Rc::clone(y), Rc::clone(&x))),
-                Rc::new(Apply(Rc::clone(z), Rc::clone(&x))))), io)?,
+                Rc::new(Apply(Rc::clone(z), Rc::clone(&x))))), ctx)?,
 
         Print(c) => {
-            io.write_fmt(format_args!("{}", c)).unwrap();
+            ctx.output.write_fmt(format_args!("{}", c)).unwrap();
             x
         }
         I => x,
         V => Rc::clone(&f),  // TODO: ideally simply move f, but it's borrowed
         E => return Err(x),
+        Read => {
+            let c = ctx.input.next();
+            ctx.cur_char = c;
+            let t = match c {
+                Some(_) => Rc::new(I),
+                None => Rc::new(V),
+            };
+            eval(Rc::new(Apply(x, t)), ctx)?
+        }
+        CompareRead(c) => {
+            let t = match ctx.cur_char {
+                Some(cc) if cc == c => Rc::new(I),
+                _ => Rc::new(V),
+            };
+            eval(Rc::new(Apply(x, t)), ctx)?
+        }
+        Reprint => {
+            let t = match ctx.cur_char {
+                Some(c) => Rc::new(Print(c)),
+                None => Rc::new(V),
+            };
+            eval(Rc::new(Apply(x, t)), ctx)?
+        }
         D => panic!("should be handled in eval"),
 
         // Similarly, apply(eval(f), x) instead of eval(`fx)
         // is probably incorrect. What if f = Promise(D)?
-        Promise(ref f) => eval(Rc::new(Apply(Rc::clone(f), x)), io)?,
+        Promise(ref f) => eval(Rc::new(Apply(Rc::clone(f), x)), ctx)?,
 
-        _ => unimplemented!("{:?}", f),
+        Apply(_, _) => panic!("should be handled by eval()")
     })
-    }
+}
 
 fn main() {
     let program = parse_str("``````````````.H.e.l.l.o.,. .w.o.r.l.d.!rv");
-    let t = eval(program, &mut std::io::stdout());
+    let mut stdout = std::io::stdout();
+    let stdin = std::io::stdin();
+    let mut it = stdin.lock().chars().map(|c| c.unwrap());
+    let mut ctx = Ctx::new(&mut stdout, &mut it);
+    let t = eval(program, &mut ctx);
     assert_eq!(t.unwrap().to_string(), "v");
 }
 
@@ -145,21 +199,35 @@ mod tests {
     }
 
     fn run_and_expect(program: &str, result: Option<&str>, output: Option<&str>) {
+        run_with_input_and_expect(program, "", result, output, None);
+    }
+
+    fn run_with_input_and_expect(
+            program: &str, input: &str,
+            result: Option<&str>, output: Option<&str>, remaining_input: Option<&str>) {
         let mut buf = Vec::<u8>::new();
-        let actual_result = eval(parse_str(program), &mut buf)
-            .unwrap_or_else(|e| e)
-            .to_string();
+        let mut input_it = input.chars();
+        let actual_result = {
+            let mut ctx = Ctx::new(&mut buf, &mut input_it);
+            eval(parse_str(program), &mut ctx)
+                .unwrap_or_else(|e| e)
+                .to_string()
+        };
         if let Some(result) = result {
             assert_eq!(&actual_result.to_string(), result);
         }
         if let Some(output) = output {
             assert_eq!(std::str::from_utf8(&buf).unwrap(), output);
         }
+        if let Some(remaining_input) = remaining_input {
+            let actual_rimaining_input: String = input_it.collect();
+            assert_eq!(actual_rimaining_input, remaining_input);
+        }
     }
 
     #[test]
     fn test_eval() {
-        run_and_expect("`.a``ks.b" , Some("s"), Some("a"));
+        run_and_expect("`.a``ks.b", Some("s"), Some("a"));
 
         run_and_expect("``ksv", Some("s"), None);
         run_and_expect("```skss", Some("s"), None);
@@ -182,6 +250,19 @@ mod tests {
 
         run_and_expect("``ii`.av", Some("v"), Some("a"));
         run_and_expect("``ei`.av", Some("i"), Some(""));
+    }
+
+    #[test]
+    fn test_input() {
+        run_with_input_and_expect("@", "zzz", None, None, Some("zzz"));
+
+        run_with_input_and_expect("`@i", "", Some("v"), None, Some(""));
+        run_with_input_and_expect("`@i", "a", Some("i"), None, Some(""));
+        run_with_input_and_expect("``@i`?ai", "a", Some("i"), None, Some(""));
+        run_with_input_and_expect("``@i`?bi", "a", Some("v"), None, Some(""));
+        run_with_input_and_expect("`?ai", "a", Some("v"), None, Some("a"));
+
+        run_with_input_and_expect("```@i`|ik", "ab", Some("k"), Some("a"), Some("b"));
     }
 
     #[test]
