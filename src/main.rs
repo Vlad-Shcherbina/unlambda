@@ -178,13 +178,23 @@ fn apply(f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
 }
 
 fn main() {
-    let program = parse_str("``````````````.H.e.l.l.o.,. .w.o.r.l.d.!rv");
+    let args: Vec<_> = std::env::args().collect();
+    if args.len() != 2 {
+        println!("Usage: ");
+        println!(
+            "    {} <program.unl>",
+            std::env::current_exe().unwrap().file_name().unwrap().to_string_lossy());
+        std::process::exit(1);
+    }
+    let mut input = std::fs::File::open(&args[1]).unwrap();
+    let mut program = String::new();
+    input.read_to_string(&mut program).unwrap();
+
     let mut stdout = std::io::stdout();
     let stdin = std::io::stdin();
     let mut it = stdin.lock().chars().map(|c| c.unwrap());
     let mut ctx = Ctx::new(&mut stdout, &mut it);
-    let t = eval(program, &mut ctx);
-    assert_eq!(t.unwrap().to_string(), "v");
+    let _ = eval(parse_str(&program), &mut ctx);
 }
 
 #[cfg(test)]
