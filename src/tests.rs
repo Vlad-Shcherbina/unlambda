@@ -1,13 +1,6 @@
 use super::*;
 use parser::parse_str;
 
-#[test]
-fn test_parse_and_to_string() {
-    assert_eq!(parse_str("  `r` `kv`. s  ").to_string(), "`r``kv`. s");
-    assert_eq!(parse_str("`k  # comment
-                            v").to_string(), "`kv");
-}
-
 fn run_and_expect(program: &str, result: Option<&str>, output: Option<&str>) {
     run_with_input_and_expect(program, "", result, output, None);
 }
