@@ -4,25 +4,26 @@ use Term::*;
 
 fn parse(it: &mut Iterator<Item=char>) -> Result<Term, String> {
     loop {
-        return Ok(match it.next().unwrap() {
-            '`' => Apply(Rc::new(parse(it)?), Rc::new(parse(it)?)),
-            'k' => K,
-            's' => S,
-            'i' => I,
-            'v' => V,
-            'd' => D,
-            'e' => E,
-            '.' => Print(it.next().unwrap()),
-            'r' => Print('\n'),
-            '@' => Read,
-            '?' => CompareRead(it.next().unwrap()),
-            '|' => Reprint,
-            '#' => {
+        return Ok(match it.next() {
+            None => return Err("unexpected EOF".to_string()),
+            Some('`') => Apply(Rc::new(parse(it)?), Rc::new(parse(it)?)),
+            Some('k') => K,
+            Some('s') => S,
+            Some('i') => I,
+            Some('v') => V,
+            Some('d') => D,
+            Some('e') => E,
+            Some('.') => Print(it.next().ok_or("unexpected EOF after '.'")?),
+            Some('r') => Print('\n'),
+            Some('@') => Read,
+            Some('?') => CompareRead(it.next().ok_or("unexpected EOF after '?'")?),
+            Some('|') => Reprint,
+            Some('#') => {
                 skip_comment(it);
                 continue;
             }
-            c if c.is_whitespace() => continue,
-            c => return Err(format!("unrecognized {:?}", c))
+            Some(c) if c.is_whitespace() => continue,
+            Some(c) => return Err(format!("unrecognized {:?}", c))
         })
     }
 }
@@ -50,6 +51,12 @@ mod tests {
 
     #[test]
     fn errors() {
+        assert_eq!(&parse_str("").unwrap_err(), "unexpected EOF");
+        assert_eq!(&parse_str("  ").unwrap_err(), "unexpected EOF");
+        assert_eq!(&parse_str("`k").unwrap_err(), "unexpected EOF");
+        assert_eq!(&parse_str(".").unwrap_err(), "unexpected EOF after '.'");
+        assert_eq!(&parse_str("`s?").unwrap_err(), "unexpected EOF after '?'");
+
         assert_eq!(&parse_str("z").unwrap_err(), "unrecognized 'z'");
         assert_eq!(&parse_str("`kks").unwrap_err(), "unexpected 's'");
     }
