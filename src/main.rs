@@ -82,5 +82,15 @@ fn main() {
     let stdin = std::io::stdin();
     let mut it = stdin.lock().chars().map(|c| c.unwrap());
     let mut ctx = Ctx::new(&mut stdout, &mut it);
-    let _ = metacircular::eval(parser::parse_str(&program), &mut ctx);
+
+    let program = parser::parse_str(&program);
+    match program {
+        Ok(program) => {
+            let _ = metacircular::eval(program, &mut ctx);
+        }
+        Err(e) => {
+            println!("Parse error: {}", e);
+            std::process::exit(2);
+        }
+    }
 }

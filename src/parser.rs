@@ -2,10 +2,10 @@ use std::rc::Rc;
 use Term;
 use Term::*;
 
-fn parse(it: &mut Iterator<Item=char>) -> Term {
+fn parse(it: &mut Iterator<Item=char>) -> Result<Term, String> {
     loop {
-        return match it.next().unwrap() {
-            '`' => Apply(Rc::new(parse(it)), Rc::new(parse(it))),
+        return Ok(match it.next().unwrap() {
+            '`' => Apply(Rc::new(parse(it)?), Rc::new(parse(it)?)),
             'k' => K,
             's' => S,
             'i' => I,
@@ -22,22 +22,22 @@ fn parse(it: &mut Iterator<Item=char>) -> Term {
                 continue;
             }
             c if c.is_whitespace() => continue,
-            c => unimplemented!("{}", c)
-        }
+            c => return Err(format!("unrecognized {:?}", c))
+        })
     }
 }
 
-pub fn parse_str(s: &str) -> Rc<Term> {
+pub fn parse_str(s: &str) -> Result<Rc<Term>, String> {
     let mut it = s.chars();
-    let result = parse(&mut it);
+    let result = parse(&mut it)?;
     while let Some(c) = it.next() {
         match c {
             '#' => skip_comment(&mut it),
             c if c.is_whitespace() => {}
-            c => panic!("unexpected {}", c)
+            c => return Err(format!("unexpected {:?}", c))
         }
     }
-    Rc::new(result)
+    Ok(Rc::new(result))
 }
 
 fn skip_comment(it: &mut Iterator<Item=char>) {
@@ -49,13 +49,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn errors() {
+        assert_eq!(&parse_str("z").unwrap_err(), "unrecognized 'z'");
+        assert_eq!(&parse_str("`kks").unwrap_err(), "unexpected 's'");
+    }
+
+    #[test]
     fn parse_and_to_string() {
-        assert_eq!(parse_str("  `r` `kv`. s  ").to_string(), "`r``kv`. s");
+        assert_eq!(parse_str("  `r` `kv`. s  ").unwrap().to_string(), "`r``kv`. s");
         assert_eq!(parse_str("`k  # comment
-                                v").to_string(), "`kv");
+                                v").unwrap().to_string(), "`kv");
 
         assert_eq!(parse_str("`kv  # comment
-                                ").to_string(), "`kv");
-        assert_eq!(parse_str("`kv  # comment").to_string(), "`kv");
+                                ").unwrap().to_string(), "`kv");
+        assert_eq!(parse_str("`kv  # comment").unwrap().to_string(), "`kv");
     }
 }

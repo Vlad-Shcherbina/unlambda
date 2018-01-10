@@ -12,7 +12,7 @@ fn run_with_input_and_expect(
     let mut input_it = input.chars();
     let actual_result = {
         let mut ctx = Ctx::new(&mut buf, &mut input_it);
-        metacircular::eval(parse_str(program), &mut ctx)
+        metacircular::eval(parse_str(program).unwrap(), &mut ctx)
             .unwrap_or_else(|e| e)
             .to_string()
     };
