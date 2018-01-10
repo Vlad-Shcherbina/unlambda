@@ -51,14 +51,14 @@ mod tests {
 
     #[test]
     fn errors() {
-        assert_eq!(&parse_str("").unwrap_err(), "unexpected EOF");
-        assert_eq!(&parse_str("  ").unwrap_err(), "unexpected EOF");
-        assert_eq!(&parse_str("`k").unwrap_err(), "unexpected EOF");
-        assert_eq!(&parse_str(".").unwrap_err(), "unexpected EOF after '.'");
-        assert_eq!(&parse_str("`s?").unwrap_err(), "unexpected EOF after '?'");
+        assert_eq!(parse_str("").unwrap_err(), "unexpected EOF");
+        assert_eq!(parse_str("  ").unwrap_err(), "unexpected EOF");
+        assert_eq!(parse_str("`k").unwrap_err(), "unexpected EOF");
+        assert_eq!(parse_str(".").unwrap_err(), "unexpected EOF after '.'");
+        assert_eq!(parse_str("`s?").unwrap_err(), "unexpected EOF after '?'");
 
-        assert_eq!(&parse_str("z").unwrap_err(), "unrecognized 'z'");
-        assert_eq!(&parse_str("`kks").unwrap_err(), "unexpected 's'");
+        assert_eq!(parse_str("z").unwrap_err(), "unrecognized 'z'");
+        assert_eq!(parse_str("`kks").unwrap_err(), "unexpected 's'");
     }
 
     #[test]
