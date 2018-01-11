@@ -1,21 +1,19 @@
 use Ctx;
+use EvalResult;
 use Term;
 use Term::*;
 use std::rc::Rc;
-
-// Err(t) means that the computation was prematurely terminated by `et.
-pub type EvalResult = Result<Rc<Term>, Rc<Term>>;
 
 // Never returns Apply(...) term, so eval() is idempotent
 // (second call returns the same value and has no IO side effects).
 pub fn eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
     if let Apply(ref f, ref x) = *term {
-        let f = eval(Rc::clone(f), ctx)?;
-        if let D = *f {
+        let ef = eval(Rc::clone(f), ctx)?;
+        if let D = *ef {
             return Ok(Rc::new(Promise(Rc::clone(x))));
         }
         return apply(
-            f,
+            ef,
             eval(Rc::clone(x), ctx)?, ctx);
     }
     Ok(term)

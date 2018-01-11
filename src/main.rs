@@ -3,6 +3,7 @@
 
 mod parser;
 mod metacircular;
+mod cps;
 #[cfg(test)] mod tests;
 
 use std::rc::Rc;
@@ -23,6 +24,9 @@ impl<'a> Ctx<'a> {
         }
     }
 }
+
+// Err(t) means that the computation was prematurely terminated by `et.
+pub type EvalResult = Result<Rc<Term>, Rc<Term>>;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Term {
@@ -87,7 +91,7 @@ fn main() {
     let program = parser::parse_str(&program);
     match program {
         Ok(program) => {
-            let _ = metacircular::eval(program, &mut ctx);
+            let _ = cps::full_eval(program, &mut ctx);
         }
         Err(e) => {
             println!("Parse error: {}", e);

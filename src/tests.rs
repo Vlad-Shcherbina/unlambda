@@ -12,7 +12,7 @@ fn run_with_input_and_expect(
     let mut input_it = input.chars();
     let actual_result = {
         let mut ctx = Ctx::new(&mut buf, &mut input_it);
-        metacircular::eval(parse_str(program).unwrap(), &mut ctx)
+        cps::full_eval(parse_str(program).unwrap(), &mut ctx)
             .unwrap_or_else(|e| e)
             .to_string()
     };
@@ -70,13 +70,17 @@ fn test_input() {
 
 #[test]
 fn ramanujan() {
-    // From the documentation
-    let mut expected = "*".repeat(1729);
-    expected.push('\n');
-    run_and_expect("
-    ```s`kr``s``si`k.*`ki
-        ```s``s`k``si`k`s``s`ksk``s``s`ksk``s``s`kski
-        ``s`k``s``s`ksk``s``s`kski`s``s`ksk
-        ```s``s`kski``s``s`ksk``s``s`kski
-    ", None, Some(&expected));
+    // https://stackoverflow.com/a/29980945/6335232
+    let child = std::thread::Builder::new().stack_size(32 * 1024 * 1024).spawn(|| {
+        // From the documentation
+        let mut expected = "*".repeat(1729);
+        expected.push('\n');
+        run_and_expect("
+        ```s`kr``s``si`k.*`ki
+            ```s``s`k``si`k`s``s`ksk``s``s`ksk``s``s`kski
+            ``s`k``s``s`ksk``s``s`kski`s``s`ksk
+            ```s``s`kski``s``s`ksk``s``s`kski
+        ", None, Some(&expected));
+    }).unwrap();
+    child.join().unwrap();
 }
