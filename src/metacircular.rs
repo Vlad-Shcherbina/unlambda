@@ -50,7 +50,7 @@ fn apply(f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
             x
         }
         I => x,
-        V => Rc::clone(&f),  // TODO: ideally simply move f, but it's borrowed
+        V => f,
         E => return Err(x),
         Read => {
             let c = ctx.input.next();

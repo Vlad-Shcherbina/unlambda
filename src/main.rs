@@ -1,4 +1,5 @@
 #![feature(io)]
+#![feature(nll)]
 
 mod parser;
 mod metacircular;
