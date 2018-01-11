@@ -8,19 +8,27 @@ use std::rc::Rc;
 // mechanically derived from metacircular::eval()
 fn eval(
     term: Rc<Term>, ctx: &mut Ctx,
-    cont: &Fn(Rc<Term>, &mut Ctx), abort: &Fn(Rc<Term>),
+    cont: Rc<Fn(Rc<Term>, &mut Ctx)>, abort: Rc<Fn(Rc<Term>)>,
 ) {
     if let Apply(ref f, ref x) = *term {
-        eval(Rc::clone(f), ctx, &|ef: Rc<Term>, ctx| {
-            if let D = *ef {
-                cont(Rc::new(Promise(Rc::clone(x))), ctx);
-                return;
-            } else {
-                eval(Rc::clone(x), ctx, &|ex, ctx| {
-                    apply(Rc::clone(&ef), ex, ctx, cont, abort);
-                }, abort);
+        eval(Rc::clone(f), ctx, Rc::new({
+            let x = Rc::clone(x);
+            let abort = Rc::clone(&abort);
+            move |ef: Rc<Term>, ctx: &mut Ctx| {
+                if let D = *ef {
+                    cont(Rc::new(Promise(Rc::clone(&x))), ctx);
+                    return;
+                } else {
+                    eval(Rc::clone(&x), ctx, Rc::new({
+                        let cont = Rc::clone(&cont);
+                        let abort = Rc::clone(&abort);
+                        move |ex: Rc<Term>, ctx: &mut Ctx| {
+                            apply(Rc::clone(&ef), ex, ctx, Rc::clone(&cont), Rc::clone(&abort));
+                        }
+                    }), Rc::clone(&abort));
+                }
             }
-        }, abort);
+        }), abort);
     } else {
         cont(term, ctx);
     }
@@ -29,7 +37,7 @@ fn eval(
 // mechanically derived from metacircular::apply()
 fn apply(
     f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx,
-    cont: &Fn(Rc<Term>, &mut Ctx), abort: &Fn(Rc<Term>),
+    cont: Rc<Fn(Rc<Term>, &mut Ctx)>, abort: Rc<Fn(Rc<Term>)>,
 ) {
     if let Apply(_, _) = *f {
         panic!();
@@ -99,17 +107,28 @@ fn apply(
 }
 
 pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
-    let result: RefCell<Option<EvalResult>> = RefCell::new(None);
-    let cont = |x, _ctx: &mut Ctx| {
-        let mut r = result.borrow_mut();
-        assert!(r.is_none());
-        *r = Some(Ok(x));
+    let result: Rc<RefCell<Option<EvalResult>>> = Rc::new(RefCell::new(None));
+    let cont = {
+        let result = Rc::clone(&result);
+        move |x, _ctx: &mut Ctx| {
+            let mut r = result.borrow_mut();
+            assert!(r.is_none());
+            *r = Some(Ok(x));
+        }
     };
-    let abort = |x| {
-        let mut r = result.borrow_mut();
-        assert!(r.is_none());
-        *r = Some(Ok(x));
+    let abort = {
+        let result = Rc::clone(&result);
+        move |x| {
+            let mut r = result.borrow_mut();
+            assert!(r.is_none());
+            *r = Some(Err(x));
+        }
     };
-    eval(term, ctx, &cont, &abort);
-    result.into_inner().unwrap()
+    eval(term, ctx, Rc::new(cont), Rc::new(abort));
+
+    let r = result.borrow();
+    match *r.as_ref().unwrap() {
+        Ok(ref t) => Ok(Rc::clone(t)),
+        Err(ref t) => Err(Rc::clone(t)),
+    }
 }
