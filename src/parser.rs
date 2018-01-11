@@ -13,6 +13,7 @@ fn parse(it: &mut Iterator<Item=char>) -> Result<Term, String> {
             Some('v') => V,
             Some('d') => D,
             Some('e') => E,
+            Some('c') => C,
             Some('.') => Print(it.next().ok_or("unexpected EOF after '.'")?),
             Some('r') => Print('\n'),
             Some('@') => Read,

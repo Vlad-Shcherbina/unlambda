@@ -102,6 +102,15 @@ fn apply(
             return;
         }
 
+        C => {
+            eval(Rc::new(Apply(x, Rc::new(Cont(Rc::clone(&cont))))), ctx, cont, abort);
+            return;
+        }
+        Cont(ref cont) => {
+            cont(x, ctx);
+            return;
+        }
+
         Apply(_, _) => panic!("should be handled by eval()")
     }, ctx);
 }

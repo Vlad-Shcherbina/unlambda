@@ -69,9 +69,16 @@ fn test_input() {
 }
 
 #[test]
+fn call_cc() {
+    // from http://www.madore.org/~david/programs/unlambda/#callcc
+    run_and_expect("``cir", Some("r"), Some("\n"));
+    run_and_expect("`c``s`kr``si`ki", Some("i"), Some(""));
+}
+
+#[test]
 fn ramanujan() {
     // https://stackoverflow.com/a/29980945/6335232
-    let child = std::thread::Builder::new().stack_size(32 * 1024 * 1024).spawn(|| {
+    let child = std::thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(|| {
         // From the documentation
         let mut expected = "*".repeat(1729);
         expected.push('\n');

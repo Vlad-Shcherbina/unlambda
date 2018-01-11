@@ -79,6 +79,9 @@ fn apply(f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
         // is probably incorrect. What if f = Promise(D)?
         Promise(ref f) => eval(Rc::new(Apply(Rc::clone(f), x)), ctx)?,
 
+        C => panic!("unsupported"),
+        Cont(_) => panic!("unsupported"),
+
         Apply(_, _) => panic!("should be handled by eval()")
     })
 }

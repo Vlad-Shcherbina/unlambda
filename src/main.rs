@@ -28,7 +28,6 @@ impl<'a> Ctx<'a> {
 // Err(t) means that the computation was prematurely terminated by `et.
 pub type EvalResult = Result<Rc<Term>, Rc<Term>>;
 
-#[derive(PartialEq, Eq, Debug)]
 pub enum Term {
     K,
     K1(Rc<Term>),
@@ -44,9 +43,17 @@ pub enum Term {
     CompareRead(char),
     Reprint,
     E,
+    C,
+    Cont(Rc<Fn(Rc<Term>, &mut Ctx)>),
     Apply(Rc<Term>, Rc<Term>),
 }
 use Term::*;
+
+impl std::fmt::Debug for Term {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
 
 impl ToString for Term {
     fn to_string(&self) -> String {
@@ -65,6 +72,8 @@ impl ToString for Term {
             CompareRead(c) => format!("?{}", c),
             Reprint => String::from("|"),
             E => String::from("e"),
+            C => String::from("c"),
+            Cont(_) => String::from("<cont>"),
             Apply(ref f, ref x) => format!("`{}{}", f.to_string(), x.to_string()),
         }
     }
