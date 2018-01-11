@@ -7,29 +7,29 @@ use std::rc::Rc;
 
 // mechanically derived from metacircular::eval()
 fn eval(
-    term: Rc<Term>, ctx: &RefCell<&mut Ctx>,
-    cont: &Fn(Rc<Term>), abort: &Fn(Rc<Term>),
+    term: Rc<Term>, ctx: &mut Ctx,
+    cont: &Fn(Rc<Term>, &mut Ctx), abort: &Fn(Rc<Term>),
 ) {
     if let Apply(ref f, ref x) = *term {
-        eval(Rc::clone(f), ctx, &|ef: Rc<Term>| {
+        eval(Rc::clone(f), ctx, &|ef: Rc<Term>, ctx| {
             if let D = *ef {
-                cont(Rc::new(Promise(Rc::clone(x))));
+                cont(Rc::new(Promise(Rc::clone(x))), ctx);
                 return;
             } else {
-                eval(Rc::clone(x), ctx, &|ex| {
+                eval(Rc::clone(x), ctx, &|ex, ctx| {
                     apply(Rc::clone(&ef), ex, ctx, cont, abort);
                 }, abort);
             }
         }, abort);
     } else {
-        cont(term);
+        cont(term, ctx);
     }
 }
 
 // mechanically derived from metacircular::apply()
 fn apply(
-    f: Rc<Term>, x: Rc<Term>, ctx: &RefCell<&mut Ctx>,
-    cont: &Fn(Rc<Term>), abort: &Fn(Rc<Term>),
+    f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx,
+    cont: &Fn(Rc<Term>, &mut Ctx), abort: &Fn(Rc<Term>),
 ) {
     if let Apply(_, _) = *f {
         panic!();
@@ -52,7 +52,7 @@ fn apply(
         }
 
         Print(c) => {
-            ctx.borrow_mut().output.write_fmt(format_args!("{}", c)).unwrap();
+            ctx.output.write_fmt(format_args!("{}", c)).unwrap();
             x
         }
         I => x,
@@ -62,8 +62,8 @@ fn apply(
             return;
         }
         Read => {
-            let c = ctx.borrow_mut().input.next();
-            ctx.borrow_mut().cur_char = c;
+            let c = ctx.input.next();
+            ctx.cur_char = c;
             let t = match c {
                 Some(_) => Rc::new(I),
                 None => Rc::new(V),
@@ -72,7 +72,7 @@ fn apply(
             return;
         }
         CompareRead(c) => {
-            let t = match ctx.borrow().cur_char {
+            let t = match ctx.cur_char {
                 Some(cc) if cc == c => Rc::new(I),
                 _ => Rc::new(V),
             };
@@ -80,7 +80,7 @@ fn apply(
             return;
         }
         Reprint => {
-            let t = match ctx.borrow().cur_char {
+            let t = match ctx.cur_char {
                 Some(c) => Rc::new(Print(c)),
                 None => Rc::new(V),
             };
@@ -95,12 +95,12 @@ fn apply(
         }
 
         Apply(_, _) => panic!("should be handled by eval()")
-    });
+    }, ctx);
 }
 
 pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
     let result: RefCell<Option<EvalResult>> = RefCell::new(None);
-    let cont = |x| {
+    let cont = |x, _ctx: &mut Ctx| {
         let mut r = result.borrow_mut();
         assert!(r.is_none());
         *r = Some(Ok(x));
@@ -110,6 +110,6 @@ pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
         assert!(r.is_none());
         *r = Some(Ok(x));
     };
-    eval(term, &RefCell::new(ctx), &cont, &abort);
+    eval(term, ctx, &cont, &abort);
     result.into_inner().unwrap()
 }
