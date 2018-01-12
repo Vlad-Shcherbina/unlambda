@@ -2,11 +2,17 @@ use std::rc::Rc;
 use Term;
 use Term::*;
 
-fn parse(it: &mut Iterator<Item=char>) -> Result<Term, String> {
-    loop {
-        return Ok(match it.next() {
-            None => return Err("unexpected EOF".to_string()),
-            Some('`') => Apply(Rc::new(parse(it)?), Rc::new(parse(it)?)),
+pub fn parse_str(s: &str) -> Result<Rc<Term>, String> {
+    let mut path: Vec<Option<Rc<Term>>> = Vec::new();
+    let mut it = s.chars();
+    let result;
+    'outer: loop {
+        let leaf = Rc::new(match it.next() {
+            None => Err("unexpected EOF")?,
+            Some('`') => {
+                path.push(None);
+                continue;
+            }
             Some('k') => K,
             Some('s') => S,
             Some('i') => I,
@@ -20,26 +26,37 @@ fn parse(it: &mut Iterator<Item=char>) -> Result<Term, String> {
             Some('?') => CompareRead(it.next().ok_or("unexpected EOF after '?'")?),
             Some('|') => Reprint,
             Some('#') => {
-                skip_comment(it);
+                skip_comment(&mut it);
                 continue;
             }
             Some(c) if c.is_whitespace() => continue,
-            Some(c) => return Err(format!("unrecognized {:?}", c))
-        })
+            Some(c) => Err(format!("unrecognized {:?}", c))?,
+        });
+        let mut subtree = leaf;
+        loop {
+            match path.pop() {
+                None => {
+                    result = subtree;
+                    break 'outer;
+                }
+                Some(None) => {
+                    path.push(Some(subtree));
+                    break;
+                }
+                Some(Some(left)) => subtree = Rc::new(Apply(left, subtree)),
+            }
+        }
     }
-}
 
-pub fn parse_str(s: &str) -> Result<Rc<Term>, String> {
-    let mut it = s.chars();
-    let result = parse(&mut it)?;
     while let Some(c) = it.next() {
         match c {
             '#' => skip_comment(&mut it),
             c if c.is_whitespace() => {}
-            c => return Err(format!("unexpected {:?}", c))
+            c => Err(format!("unexpected {:?}", c))?
         }
     }
-    Ok(Rc::new(result))
+
+    Ok(result)
 }
 
 fn skip_comment(it: &mut Iterator<Item=char>) {
