@@ -28,17 +28,17 @@ so there is no more recursion.
 
 // mechanically derived from metacircular::eval()
 fn eval(
-    term: Rc<Term>, ctx: &mut Ctx,
+    term: Rc<Term>,
     cont: Rc<Fn(Rc<Term>, &mut Ctx) -> ContResult>,
 ) -> ContResult {
     if let Apply(ref f, ref x) = *term {
-        return ContResult::NextStep(Box::new({
+        ContResult::NextStep(Box::new({
             let x = Rc::clone(x);
             let f = Rc::clone(f);
-            move |ctx: &mut Ctx| {
-                eval(Rc::clone(&f), ctx, Rc::new(
+            move |_ctx: &mut Ctx| {
+                eval(Rc::clone(&f), Rc::new(
                     // cont1
-                    move |ef: Rc<Term>, ctx: &mut Ctx| {
+                    move |ef: Rc<Term>, _ctx: &mut Ctx| {
                         if let D = *ef {
                             return ContResult::NextStep(Box::new({
                                 let cont = Rc::clone(&cont);
@@ -48,27 +48,27 @@ fn eval(
                                 }
                             }));
                         } else {
-                            return eval(Rc::clone(&x), ctx, Rc::new({
+                            return eval(Rc::clone(&x), Rc::new({
                                 let cont = Rc::clone(&cont);
                                 // cont2
                                 move |ex: Rc<Term>, _ctx: &mut Ctx| {
-                                    return ContResult::NextStep(Box::new({
+                                    ContResult::NextStep(Box::new({
                                         let cont = Rc::clone(&cont);
                                         let ef = Rc::clone(&ef);
                                         move |ctx: &mut Ctx|
                                             apply(ef, ex, ctx, Rc::clone(&cont))
-                                    }));
+                                    }))
                                 }
                             }));
                         }
                     }
                 ))
             }
-        }));
+        }))
     } else {
-        return ContResult::NextStep(Box::new(
+        ContResult::NextStep(Box::new(
             move |ctx: &mut Ctx| cont(term, ctx)
-        ));
+        ))
     }
 }
 
@@ -84,7 +84,7 @@ fn apply(
         panic!();
     }
 
-    return cont(match *f {
+    cont(match *f {
         K => Rc::new(K1(x)),
         K1(ref y) => Rc::clone(y),
         S => Rc::new(S1(x)),
@@ -93,7 +93,7 @@ fn apply(
         S2(ref y, ref z) => {
             return eval(Rc::new(Apply(
                 Rc::new(Apply(Rc::clone(y), Rc::clone(&x))),
-                Rc::new(Apply(Rc::clone(z), Rc::clone(&x))))), ctx, cont);
+                Rc::new(Apply(Rc::clone(z), Rc::clone(&x))))), cont);
         }
 
         Print(c) => {
@@ -112,37 +112,37 @@ fn apply(
                 Some(_) => Rc::new(I),
                 None => Rc::new(V),
             };
-            return eval(Rc::new(Apply(x, t)), ctx, cont);
+            return eval(Rc::new(Apply(x, t)), cont);
         }
         CompareRead(c) => {
             let t = match ctx.cur_char {
                 Some(cc) if cc == c => Rc::new(I),
                 _ => Rc::new(V),
             };
-            return eval(Rc::new(Apply(x, t)), ctx, cont);
+            return eval(Rc::new(Apply(x, t)), cont);
         }
         Reprint => {
             let t = match ctx.cur_char {
                 Some(c) => Rc::new(Print(c)),
                 None => Rc::new(V),
             };
-            return eval(Rc::new(Apply(x, t)), ctx, cont);
+            return eval(Rc::new(Apply(x, t)), cont);
         }
         D => panic!("should be handled in eval"),
 
         Promise(ref f) => {
-            return eval(Rc::new(Apply(Rc::clone(f), x)), ctx, cont);
+            return eval(Rc::new(Apply(Rc::clone(f), x)), cont);
         }
 
         C => {
-            return eval(Rc::new(Apply(x, Rc::new(Cont(Rc::clone(&cont))))), ctx, cont);
+            return eval(Rc::new(Apply(x, Rc::new(Cont(Rc::clone(&cont))))), cont);
         }
         Cont(ref cont) => {
             return cont(x, ctx);
         }
 
         Apply(_, _) => panic!("should be handled by eval()")
-    }, ctx);
+    }, ctx)
 }
 
 pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
@@ -151,8 +151,8 @@ pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
         ContResult::Finished(Ok(x))
     };
 
-    let mut r = ContResult::NextStep(Box::new(move |ctx: &mut Ctx| {
-        eval(term, ctx, Rc::new(cont))
+    let mut r = ContResult::NextStep(Box::new(move |_ctx: &mut Ctx| {
+        eval(term, Rc::new(cont))
     }));
     loop {
         match r {
