@@ -18,7 +18,12 @@ Call graph:
    apply calls  eval, cont
    cont  is     cont0, cont1, cont2 (think dotted lines)
 
-Recursive call eval->eval is mediated by NextStep.
+The following calls are mediated by NextStep:
+   eval -> eval
+   cont1 -> cont
+   cont2 -> apply
+   eval -> cont
+so there is no more recursion.
 */
 
 // mechanically derived from metacircular::eval()
@@ -35,13 +40,24 @@ fn eval(
                     // cont1
                     move |ef: Rc<Term>, ctx: &mut Ctx| {
                         if let D = *ef {
-                            return cont(Rc::new(Promise(Rc::clone(&x))), ctx)
+                            return ContResult::NextStep(Box::new({
+                                let cont = Rc::clone(&cont);
+                                let x = Rc::clone(&x);
+                                move |ctx: &mut Ctx| {
+                                    cont(Rc::new(Promise(x)), ctx)
+                                }
+                            }));
                         } else {
                             return eval(Rc::clone(&x), ctx, Rc::new({
                                 let cont = Rc::clone(&cont);
                                 // cont2
-                                move |ex: Rc<Term>, ctx: &mut Ctx| {
-                                    return apply(Rc::clone(&ef), ex, ctx, Rc::clone(&cont));
+                                move |ex: Rc<Term>, _ctx: &mut Ctx| {
+                                    return ContResult::NextStep(Box::new({
+                                        let cont = Rc::clone(&cont);
+                                        let ef = Rc::clone(&ef);
+                                        move |ctx: &mut Ctx|
+                                            apply(ef, ex, ctx, Rc::clone(&cont))
+                                    }));
                                 }
                             }));
                         }
@@ -50,7 +66,9 @@ fn eval(
             }
         }));
     } else {
-        return cont(term, ctx);
+        return ContResult::NextStep(Box::new(
+            move |ctx: &mut Ctx| cont(term, ctx)
+        ));
     }
 }
 
