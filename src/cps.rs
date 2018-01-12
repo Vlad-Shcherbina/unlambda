@@ -9,6 +9,15 @@ pub enum ContResult {
     Finished(EvalResult),
 }
 
+/*
+Call graph:
+   eval  calls  eval, cont
+   cont1 calls  eval, cont
+   cont2 calls  apply
+   apply calls  eval, cont
+   cont  is     cont0, cont1, cont2 (think dotted lines)
+*/
+
 // mechanically derived from metacircular::eval()
 fn eval(
     term: Rc<Term>, ctx: &mut Ctx,
@@ -17,12 +26,14 @@ fn eval(
     if let Apply(ref f, ref x) = *term {
         return eval(Rc::clone(f), ctx, Rc::new({
             let x = Rc::clone(x);
+            // cont1
             move |ef: Rc<Term>, ctx: &mut Ctx| {
                 if let D = *ef {
                     return cont(Rc::new(Promise(Rc::clone(&x))), ctx)
                 } else {
                     return eval(Rc::clone(&x), ctx, Rc::new({
                         let cont = Rc::clone(&cont);
+                        // cont2
                         move |ex: Rc<Term>, ctx: &mut Ctx| {
                             return apply(Rc::clone(&ef), ex, ctx, Rc::clone(&cont));
                         }
@@ -109,6 +120,7 @@ fn apply(
 }
 
 pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
+    // cont0
     let cont = |x, _ctx: &mut Ctx| {
         ContResult::Finished(Ok(x))
     };
