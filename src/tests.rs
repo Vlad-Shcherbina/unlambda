@@ -78,7 +78,11 @@ fn call_cc() {
 #[test]
 fn ramanujan() {
     // https://stackoverflow.com/a/29980945/6335232
-    let child = std::thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(|| {
+    std::thread::Builder::new()
+    .name("ramanujan".to_string())
+    .stack_size(32 * 1024 * 1024)
+    .spawn(|| {
+
         // From the documentation
         let mut expected = "*".repeat(1729);
         expected.push('\n');
@@ -88,6 +92,6 @@ fn ramanujan() {
             ``s`k``s``s`ksk``s``s`kski`s``s`ksk
             ```s``s`kski``s``s`ksk``s``s`kski
         ", None, Some(&expected));
-    }).unwrap();
-    child.join().unwrap();
+
+    }).unwrap().join().unwrap();
 }

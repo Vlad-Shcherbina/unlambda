@@ -44,7 +44,7 @@ pub enum Term {
     Reprint,
     E,
     C,
-    Cont(Rc<Fn(Rc<Term>, &mut Ctx)>),
+    Cont(Rc<Fn(Rc<Term>, &mut Ctx) -> cps::ContResult>),
     Apply(Rc<Term>, Rc<Term>),
 }
 use Term::*;
