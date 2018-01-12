@@ -1,5 +1,6 @@
 #![feature(io)]
 #![feature(nll)]
+#![feature(fnbox)]
 
 mod parser;
 mod metacircular;

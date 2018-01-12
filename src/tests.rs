@@ -77,21 +77,13 @@ fn call_cc() {
 
 #[test]
 fn ramanujan() {
-    // https://stackoverflow.com/a/29980945/6335232
-    std::thread::Builder::new()
-    .name("ramanujan".to_string())
-    .stack_size(32 * 1024 * 1024)
-    .spawn(|| {
-
-        // From the documentation
-        let mut expected = "*".repeat(1729);
-        expected.push('\n');
-        run_and_expect("
-        ```s`kr``s``si`k.*`ki
-            ```s``s`k``si`k`s``s`ksk``s``s`ksk``s``s`kski
-            ``s`k``s``s`ksk``s``s`kski`s``s`ksk
-            ```s``s`kski``s``s`ksk``s``s`kski
-        ", None, Some(&expected));
-
-    }).unwrap().join().unwrap();
+    // http://www.madore.org/~david/programs/unlambda/#howto_num
+    let mut expected = "*".repeat(1729);
+    expected.push('\n');
+    run_and_expect("
+    ```s`kr``s``si`k.*`ki
+        ```s``s`k``si`k`s``s`ksk``s``s`ksk``s``s`kski
+        ``s`k``s``s`ksk``s``s`kski`s``s`ksk
+        ```s``s`kski``s``s`ksk``s``s`kski
+    ", None, Some(&expected));
 }

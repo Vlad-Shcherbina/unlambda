@@ -3,9 +3,10 @@ use EvalResult;
 use Term;
 use Term::*;
 use std::rc::Rc;
+use std::boxed::FnBox;
 
 pub enum ContResult {
-    NextStep(Rc<Fn(&mut Ctx) -> ContResult>),
+    NextStep(Box<FnBox(&mut Ctx) -> ContResult>),
     Finished(EvalResult),
 }
 
@@ -16,6 +17,8 @@ Call graph:
    cont2 calls  apply
    apply calls  eval, cont
    cont  is     cont0, cont1, cont2 (think dotted lines)
+
+Recursive call eval->eval is mediated by NextStep.
 */
 
 // mechanically derived from metacircular::eval()
@@ -24,21 +27,26 @@ fn eval(
     cont: Rc<Fn(Rc<Term>, &mut Ctx) -> ContResult>,
 ) -> ContResult {
     if let Apply(ref f, ref x) = *term {
-        return eval(Rc::clone(f), ctx, Rc::new({
+        return ContResult::NextStep(Box::new({
             let x = Rc::clone(x);
-            // cont1
-            move |ef: Rc<Term>, ctx: &mut Ctx| {
-                if let D = *ef {
-                    return cont(Rc::new(Promise(Rc::clone(&x))), ctx)
-                } else {
-                    return eval(Rc::clone(&x), ctx, Rc::new({
-                        let cont = Rc::clone(&cont);
-                        // cont2
-                        move |ex: Rc<Term>, ctx: &mut Ctx| {
-                            return apply(Rc::clone(&ef), ex, ctx, Rc::clone(&cont));
+            let f = Rc::clone(f);
+            move |ctx: &mut Ctx| {
+                eval(Rc::clone(&f), ctx, Rc::new(
+                    // cont1
+                    move |ef: Rc<Term>, ctx: &mut Ctx| {
+                        if let D = *ef {
+                            return cont(Rc::new(Promise(Rc::clone(&x))), ctx)
+                        } else {
+                            return eval(Rc::clone(&x), ctx, Rc::new({
+                                let cont = Rc::clone(&cont);
+                                // cont2
+                                move |ex: Rc<Term>, ctx: &mut Ctx| {
+                                    return apply(Rc::clone(&ef), ex, ctx, Rc::clone(&cont));
+                                }
+                            }));
                         }
-                    }));
-                }
+                    }
+                ))
             }
         }));
     } else {
@@ -125,10 +133,14 @@ pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
         ContResult::Finished(Ok(x))
     };
 
-    let mut r = eval(term, ctx, Rc::new(cont));
+    let mut r = ContResult::NextStep(Box::new(move |ctx: &mut Ctx| {
+        eval(term, ctx, Rc::new(cont))
+    }));
     loop {
         match r {
-            ContResult::NextStep(step) => r = step(ctx),
+            ContResult::NextStep(step) =>
+                // https://github.com/rust-lang/rust/issues/25647
+                r = step.call_box((ctx,)),
             ContResult::Finished(result) => return result,
         }
     }
