@@ -2,6 +2,13 @@
 #![feature(nll)]
 #![feature(fnbox)]
 
+#[macro_use] extern crate clap;
+extern crate structopt;
+#[macro_use] extern crate structopt_derive;
+use structopt::StructOpt;
+
+extern crate time;
+
 mod parser;
 mod metacircular;
 mod cps;
@@ -87,16 +94,33 @@ impl ToString for Term {
     }
 }
 
-fn main() {
-    let args: Vec<_> = std::env::args().collect();
-    if args.len() != 2 {
-        println!("Usage: ");
-        println!(
-            "    {} <program.unl>",
-            std::env::current_exe().unwrap().file_name().unwrap().to_string_lossy());
-        std::process::exit(1);
+arg_enum! {
+    #[derive(Debug)]
+    enum Interpreter {
+        MetaCircular,
+        CPS,
+        SmallStep
     }
-    let mut input = std::fs::File::open(&args[1]).unwrap();
+}
+
+#[derive(StructOpt, Debug)]
+struct Opt {
+    // https://github.com/TeXitoi/structopt/issues/42#issuecomment-355751846
+    #[structopt(
+        long = "interpreter",
+        possible_values_raw = "&Interpreter::variants()",
+        case_insensitive_raw = "true",
+        default_value = "SmallStep")]
+    interpreter: Interpreter,
+    #[structopt(long = "time", help = "Print execution time to stderr")]
+    time: bool,
+    file_name: String,
+}
+
+fn main() {
+    let opt = Opt::from_args();
+
+    let mut input = std::fs::File::open(opt.file_name).unwrap();
     let mut program = String::new();
     input.read_to_string(&mut program).unwrap();
 
@@ -108,7 +132,16 @@ fn main() {
     let program = parser::parse_str(&program);
     match program {
         Ok(program) => {
-            let _ = small_step::full_eval(program, &mut ctx);
+            let eval = match opt.interpreter {
+                Interpreter::MetaCircular => metacircular::eval,
+                Interpreter::CPS => cps::full_eval,
+                Interpreter::SmallStep => small_step::full_eval,
+            };
+            let start = time::precise_time_s();
+            let _ = eval(program, &mut ctx);
+            if opt.time {
+                eprintln!("It took {}s", time::precise_time_s() - start);
+            }
         }
         Err(e) => {
             println!("Parse error: {}", e);
