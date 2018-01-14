@@ -132,19 +132,26 @@ fn main() {
     let program = parser::parse_str(&program);
     match program {
         Ok(program) => {
-            let eval = match opt.interpreter {
-                Interpreter::MetaCircular => metacircular::eval,
-                Interpreter::CPS => cps::full_eval,
-                Interpreter::SmallStep => small_step::full_eval,
-            };
             let start = time::precise_time_s();
-            let _ = eval(program, &mut ctx);
+            {
+                let _ = match opt.interpreter {
+                    Interpreter::MetaCircular => {
+                        if metacircular::contains_c(&program) {
+                            eprintln!("Metacircular interpreter does not support call/cc");
+                            std::process::exit(1);
+                        }
+                        metacircular::eval(program, &mut ctx)
+                    }
+                    Interpreter::CPS => cps::full_eval(program, &mut ctx),
+                    Interpreter::SmallStep => small_step::full_eval(program, &mut ctx),
+                };
+            }
             if opt.time {
                 eprintln!("It took {}s", time::precise_time_s() - start);
             }
         }
         Err(e) => {
-            println!("Parse error: {}", e);
+            eprintln!("Parse error: {}", e);
             std::process::exit(2);
         }
     }

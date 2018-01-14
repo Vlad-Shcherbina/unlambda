@@ -86,3 +86,18 @@ fn apply(f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
         Apply(_, _) => panic!("should be handled by eval()")
     })
 }
+
+pub fn contains_c(t: &Term) -> bool {
+    let mut q = vec![t];
+    while let Some(t) = q.pop() {
+        match *t {
+            C => return true,
+            Apply(ref f, ref x) => {
+                q.push(f);
+                q.push(x);
+            }
+            _ => {}
+        }
+    }
+    false
+}
