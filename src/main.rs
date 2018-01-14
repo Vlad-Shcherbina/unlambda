@@ -5,6 +5,7 @@
 mod parser;
 mod metacircular;
 mod cps;
+mod small_step;
 #[cfg(test)] mod tests;
 
 use std::rc::Rc;
@@ -45,8 +46,13 @@ pub enum Term {
     Reprint,
     E,
     C,
-    Cont(Rc<Fn(Rc<Term>, &mut Ctx) -> cps::ContResult>),
     Apply(Rc<Term>, Rc<Term>),
+
+    // only used by CPS interpreter
+    Cont(Rc<Fn(Rc<Term>, &mut Ctx) -> cps::ContResult>),
+
+    // only used by small-step interpreter
+    ReifiedCont(Rc<small_step::Cont>)
 }
 use Term::*;
 
@@ -75,6 +81,7 @@ impl ToString for Term {
             E => String::from("e"),
             C => String::from("c"),
             Cont(_) => String::from("<cont>"),
+            ReifiedCont(_) => String::from("<cont>"),
             Apply(ref f, ref x) => format!("`{}{}", f.to_string(), x.to_string()),
         }
     }
@@ -101,7 +108,7 @@ fn main() {
     let program = parser::parse_str(&program);
     match program {
         Ok(program) => {
-            let _ = cps::full_eval(program, &mut ctx);
+            let _ = small_step::full_eval(program, &mut ctx);
         }
         Err(e) => {
             println!("Parse error: {}", e);

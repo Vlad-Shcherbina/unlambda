@@ -81,6 +81,7 @@ fn apply(f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
 
         C => panic!("unsupported"),
         Cont(_) => panic!("unsupported"),
+        ReifiedCont(_) => panic!("unsupported"),
 
         Apply(_, _) => panic!("should be handled by eval()")
     })

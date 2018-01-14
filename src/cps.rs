@@ -141,6 +141,8 @@ fn apply(
             return cont(x, ctx);
         }
 
+        ReifiedCont(_) => panic!("unsupported"),
+
         Apply(_, _) => panic!("should be handled by eval()")
     }, ctx)
 }
