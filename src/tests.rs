@@ -87,3 +87,11 @@ fn ramanujan() {
         ```s``s`kski``s``s`ksk``s``s`kski
     ", None, Some(&expected));
 }
+
+#[test]
+fn drop_is_non_recursive() {
+    let mut t = Rc::new(Term::K);
+    for _ in 0..1_000_000 {
+        t = Rc::new(Term::Apply(Rc::clone(&t), t));
+    }
+}

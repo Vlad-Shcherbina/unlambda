@@ -9,6 +9,7 @@ use structopt::StructOpt;
 
 extern crate time;
 
+mod drop;
 mod parser;
 mod metacircular;
 mod cps;
