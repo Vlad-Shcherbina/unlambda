@@ -30,6 +30,8 @@ fn run_with_input_and_expect(
 
 #[test]
 fn test_eval() {
+    run_and_expect("s", Some("s"), None);
+
     run_and_expect("`.a``ks.b", Some("s"), Some("a"));
 
     run_and_expect("``ksv", Some("s"), None);

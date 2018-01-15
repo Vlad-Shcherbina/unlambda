@@ -41,11 +41,16 @@ fn resume(cont: Rc<Cont>, value: Rc<Term>, ctx: &mut Ctx) -> ContResult {
 
 fn eval(term: Rc<Term>, cont: Rc<Cont>) -> ContResult {
     if let Apply(ref f, ref x) = *term {
-        let c1 = Cont::Cont1(Rc::clone(x), Rc::clone(&cont));
-        Ok((Rc::new(Cont::Eval(Rc::new(c1))), Rc::clone(f)))
+        eval_of_apply(Rc::clone(f), Rc::clone(x), cont)
     } else {
         Ok((cont, term))
     }
+}
+
+// equivalent to eval(Apply(f, x))
+fn eval_of_apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>) -> ContResult {
+    let c1 = Cont::Cont1(x, cont);
+    Ok((Rc::new(Cont::Eval(Rc::new(c1))), f))
 }
 
 fn apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>, ctx: &mut Ctx) -> ContResult {
@@ -63,9 +68,9 @@ fn apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>, ctx: &mut Ctx) -> ContResult 
         S1(ref y) => Rc::new(S2(Rc::clone(y), x)),
 
         S2(ref y, ref z) => {
-            return eval(Rc::new(Apply(
+            return eval_of_apply(
                 Rc::new(Apply(Rc::clone(y), Rc::clone(&x))),
-                Rc::new(Apply(Rc::clone(z), Rc::clone(&x))))), cont);
+                Rc::new(Apply(Rc::clone(z), Rc::clone(&x))), cont);
         }
 
         Print(c) => {
@@ -82,31 +87,31 @@ fn apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>, ctx: &mut Ctx) -> ContResult 
                 Some(_) => Rc::new(I),
                 None => Rc::new(V),
             };
-            return eval(Rc::new(Apply(x, t)), cont);
+            return eval_of_apply(x, t, cont);
         }
         CompareRead(c) => {
             let t = match ctx.cur_char {
                 Some(cc) if cc == c => Rc::new(I),
                 _ => Rc::new(V),
             };
-            return eval(Rc::new(Apply(x, t)), cont);
+            return eval_of_apply(x, t, cont);
         }
         Reprint => {
             let t = match ctx.cur_char {
                 Some(c) => Rc::new(Print(c)),
                 None => Rc::new(V),
             };
-            return eval(Rc::new(Apply(x, t)), cont);
+            return eval_of_apply(x, t, cont);
         }
         D => panic!("should be handled in eval"),
 
         Promise(ref f) => {
-            return eval(Rc::new(Apply(Rc::clone(f), x)), cont);
+            return eval_of_apply(Rc::clone(f), x, cont);
         }
 
         C => {
             let c = Rc::new(Term::ReifiedCont(Rc::clone(&cont)));
-            return eval(Rc::new(Apply(x, c)), cont);
+            return eval_of_apply(x, c, cont);
         }
         ReifiedCont(ref cont) => {
             return Ok((Rc::clone(cont), x));
