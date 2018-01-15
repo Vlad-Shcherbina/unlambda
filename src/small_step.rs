@@ -15,11 +15,20 @@ pub enum Cont {
 type ContResult = Result<(Rc<Cont>, Rc<Term>), EvalResult>;
 
 /*
+Call graph:
+    eval          calls  eval_of_apply, cont
+    eval_of_apply calls  eval
+    apply         calls  eval_of_apply, cont
+    cont1         calls  eval, cont
+    cont2         calls  apply
+    cont          is     cont0, cont1, cont2, eval
+
 To break recursion, the following calls are mediated by the outer loop:
-   eval -> eval
-   cont1 -> cont
-   eval -> cont
-   apply -> cont  (instead of cont2 -> apply as in cps version)
+    eval -> cont
+    apply -> cont
+    cont1 -> cont
+
+Recursion  eval -> eval_of_apply -> eval  is implemented as a loop in eval().
 */
 
 fn resume(cont: Rc<Cont>, value: Rc<Term>, ctx: &mut Ctx) -> ContResult {
@@ -39,18 +48,22 @@ fn resume(cont: Rc<Cont>, value: Rc<Term>, ctx: &mut Ctx) -> ContResult {
     }
 }
 
-fn eval(term: Rc<Term>, cont: Rc<Cont>) -> ContResult {
-    if let Apply(ref f, ref x) = *term {
-        eval_of_apply(Rc::clone(f), Rc::clone(x), cont)
-    } else {
-        Ok((cont, term))
+fn eval(mut term: Rc<Term>, mut cont: Rc<Cont>) -> ContResult {
+    // this loop always terminates (terms have finite depth),
+    // but it's not constant time, so perhaps technically
+    // this isn't a small-step interpreter anymore
+    while let Apply(ref f, ref x) = *term {
+        let c1 = Cont::Cont1(Rc::clone(x), cont);
+        cont = Rc::new(Cont::Eval(Rc::new(c1)));
+        term = Rc::clone(f);
     }
+    Ok((cont, term))
 }
 
 // equivalent to eval(Apply(f, x))
 fn eval_of_apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>) -> ContResult {
     let c1 = Cont::Cont1(x, cont);
-    Ok((Rc::new(Cont::Eval(Rc::new(c1))), f))
+    eval(f, Rc::new(c1))
 }
 
 fn apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>, ctx: &mut Ctx) -> ContResult {
