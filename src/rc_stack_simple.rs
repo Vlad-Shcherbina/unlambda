@@ -21,10 +21,6 @@ impl<T> RcStack<T> {
         }
     }
 
-    pub fn clone(this: &RcStack<T>) -> RcStack<T> {
-        RcStack(this.0.clone())
-    }
-
     pub fn push(&mut self, elem: T) {
         let old = mem::replace(self, RcStack::new());
         self.0 = Some(Rc::new((elem, old)));
@@ -73,6 +69,12 @@ impl<T: Clone> RcStack<T> {
                 result
             }
         }
+    }
+}
+
+impl<T> Clone for RcStack<T> {
+    fn clone(&self) -> RcStack<T> {
+        RcStack(self.0.clone())
     }
 }
 
