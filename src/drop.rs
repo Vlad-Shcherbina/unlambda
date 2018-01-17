@@ -4,10 +4,9 @@ use Term;
 use Term::*;
 use std::rc::Rc;
 use std::mem;
-use small_step::Cont;
-use small_step::Cont::*;
+use small_step::ContEntry::*;
 
-fn deconstruct_term(mut t: Term, terms: &mut Vec<Rc<Term>>, conts: &mut Vec<Rc<Cont>>) {
+fn deconstruct_term(mut t: Term, terms: &mut Vec<Rc<Term>>) {
     unsafe {
         match t {
             K1(ref mut x) =>
@@ -24,8 +23,15 @@ fn deconstruct_term(mut t: Term, terms: &mut Vec<Rc<Term>>, conts: &mut Vec<Rc<C
                 terms.push(mem::replace(f, mem::uninitialized()));
                 terms.push(mem::replace(x, mem::uninitialized()));
             }
-            ReifiedCont(ref mut c) =>
-                conts.push(mem::replace(c, mem::uninitialized())),
+            ReifiedCont(ref mut c) => {
+                while let Some(ce) = c.try_pop_unwrap() {
+                    match ce {
+                        Cont1(x) | Cont2(x) => terms.push(x),
+                        Eval => {}
+                    }
+                }
+                drop(mem::replace(c, mem::uninitialized()))
+            },
             Cont(ref mut c) =>
                 // no support for non-recursive closure drop()
                 drop(mem::replace(c, mem::uninitialized())),
@@ -37,54 +43,39 @@ fn deconstruct_term(mut t: Term, terms: &mut Vec<Rc<Term>>, conts: &mut Vec<Rc<C
     }
 }
 
-fn deconstruct_cont(mut c: Cont, terms: &mut Vec<Rc<Term>>, conts: &mut Vec<Rc<Cont>>) {
-    unsafe {
-        match c {
-            Cont1(ref mut t, ref mut c) |
-            Cont2(ref mut t, ref mut c) => {
-                terms.push(mem::replace(t, mem::uninitialized()));
-                conts.push(mem::replace(c, mem::uninitialized()));
-            }
-            Eval(ref mut c) =>
-                conts.push(mem::replace(c, mem::uninitialized())),
-            Cont0 => {}
-        }
-        mem::forget(c);
-    }
-}
-
-fn devour(mut terms: Vec<Rc<Term>>, mut conts: Vec<Rc<Cont>>) {
-    loop {
-        while let Some(p) = terms.pop() {
-            if let Ok(t) = Rc::try_unwrap(p) {
-                deconstruct_term(t, &mut terms, &mut conts);
-            }
-        }
-        if conts.is_empty() {
-            break;
-        }
-        while let Some(p) = conts.pop() {
-            if let Ok(c) = Rc::try_unwrap(p) {
-                deconstruct_cont(c, &mut terms, &mut conts);
-            }
-        }
-    }
-}
-
 impl Drop for Term {
     fn drop(&mut self) {
         let mut terms = Vec::new();
-        let mut conts = Vec::new();
-        deconstruct_term(mem::replace(self, K), &mut terms, &mut conts);
-        devour(terms, conts);
+        deconstruct_term(mem::replace(self, K), &mut terms);
+        while let Some(p) = terms.pop() {
+            if let Ok(t) = Rc::try_unwrap(p) {
+                deconstruct_term(t, &mut terms);
+            }
+        }
     }
 }
 
-impl Drop for Cont {
-    fn drop(&mut self) {
-        let mut terms = Vec::new();
-        let mut conts = Vec::new();
-        deconstruct_cont(mem::replace(self, Cont0), &mut terms, &mut conts);
-        devour(terms, conts);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deep_term() {
+        let mut t = Rc::new(Term::K);
+        for _ in 0..1_000_000 {
+            t = Rc::new(Term::Apply(Rc::clone(&t), t));
+        }
+    }
+
+    #[test]
+    fn deep_reified_cont() {
+        use small_step::Cont;
+
+        let mut c = Cont::new();
+        for _ in 0..1_000_000 {
+            let t = Rc::new(Term::ReifiedCont(c));
+            c = Cont::new();
+            c.push(Cont1(t));
+        }
     }
 }

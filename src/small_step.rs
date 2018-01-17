@@ -3,16 +3,19 @@ use EvalResult;
 use Term;
 use Term::*;
 use std::rc::Rc;
+use rc_stack_simple::RcStack;
 
-#[derive(Debug)]
-pub enum Cont {
-    Cont0,
-    Cont1(Rc<Term>, Rc<Cont>),
-    Cont2(Rc<Term>, Rc<Cont>),
-    Eval(Rc<Cont>),
+#[derive(Clone, Debug)]
+pub enum ContEntry {
+    Cont1(Rc<Term>),
+    Cont2(Rc<Term>),
+    Eval,
 }
+use self::ContEntry::*;
 
-type ContResult = Result<(Rc<Cont>, Rc<Term>), EvalResult>;
+pub type Cont = RcStack<ContEntry>;
+
+type ContResult = Result<(Cont, Rc<Term>), EvalResult>;
 
 /*
 Call graph:
@@ -31,42 +34,41 @@ To break recursion, the following calls are mediated by the outer loop:
 Recursion  eval -> eval_of_apply -> eval  is implemented as a loop in eval().
 */
 
-fn resume(cont: Rc<Cont>, value: Rc<Term>, ctx: &mut Ctx) -> ContResult {
-    match *cont {
-        Cont::Cont0 => Err(Ok(value)),
-        Cont::Cont1(ref x, ref c) => {
+fn resume(mut cont: Cont, value: Rc<Term>, ctx: &mut Ctx) -> ContResult {
+    match cont.pop_clone() {
+        None /* cont0 */ => Err(Ok(value)),
+        Some(Cont1(ref x)) => {
             let ef = value;
             if let D = *ef {
-                Ok((Rc::clone(c), Rc::new(Promise(Rc::clone(x)))))
+                Ok((cont, Rc::new(Promise(Rc::clone(x)))))
             } else {
-                let c2 = Cont::Cont2(ef, Rc::clone(c));
-                eval(Rc::clone(x), Rc::new(c2))
+                cont.push(Cont2(ef));
+                eval(Rc::clone(x), cont)
             }
         }
-        Cont::Cont2(ref ef, ref c) => apply(Rc::clone(ef), value, Rc::clone(c), ctx),
-        Cont::Eval(ref cont) => eval(value, Rc::clone(cont)),
+        Some(Cont2(ref ef)) => apply(Rc::clone(ef), value, cont, ctx),
+        Some(Eval) => eval(value, cont),
     }
 }
 
-fn eval(mut term: Rc<Term>, mut cont: Rc<Cont>) -> ContResult {
+fn eval(mut term: Rc<Term>, mut cont: Cont) -> ContResult {
     // this loop always terminates (terms have finite depth),
     // but it's not constant time, so perhaps technically
     // this isn't a small-step interpreter anymore
     while let Apply(ref f, ref x) = *term {
-        let c1 = Cont::Cont1(Rc::clone(x), cont);
-        cont = Rc::new(Cont::Eval(Rc::new(c1)));
+        cont.push(Cont1(Rc::clone(x)));
         term = Rc::clone(f);
     }
     Ok((cont, term))
 }
 
 // equivalent to eval(Apply(f, x))
-fn eval_of_apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>) -> ContResult {
-    let c1 = Cont::Cont1(x, cont);
-    eval(f, Rc::new(c1))
+fn eval_of_apply(f: Rc<Term>, x: Rc<Term>, mut cont: Cont) -> ContResult {
+    cont.push(Cont1(x));
+    eval(f, cont)
 }
 
-fn apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>, ctx: &mut Ctx) -> ContResult {
+fn apply(f: Rc<Term>, x: Rc<Term>, cont: Cont, ctx: &mut Ctx) -> ContResult {
     if let Apply(_, _) = *f {
         panic!();
     }
@@ -123,11 +125,11 @@ fn apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>, ctx: &mut Ctx) -> ContResult 
         }
 
         C => {
-            let c = Rc::new(Term::ReifiedCont(Rc::clone(&cont)));
+            let c = Rc::new(Term::ReifiedCont(RcStack::clone(&cont)));
             return eval_of_apply(x, c, cont);
         }
         ReifiedCont(ref cont) => {
-            return Ok((Rc::clone(cont), x));
+            return Ok((RcStack::clone(cont), x));
         }
 
         Cont(_) => panic!("not supported!"),
@@ -138,11 +140,13 @@ fn apply(f: Rc<Term>, x: Rc<Term>, cont: Rc<Cont>, ctx: &mut Ctx) -> ContResult 
 }
 
 pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
-    let mut r: ContResult = Ok((Rc::new(Cont::Eval(Rc::new(Cont::Cont0))), term));
+    let mut cont = RcStack::new();  // cont0
+    cont.push(Eval);
+    let mut r: ContResult = Ok((cont, term));
     loop {
         match r {
-            Ok((ref cont, ref term)) =>
-                r = resume(Rc::clone(cont), Rc::clone(term), ctx),
+            Ok((cont, term)) =>
+                r = resume(cont, term, ctx),
             Err(result) => return result,
         }
     }

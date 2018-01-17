@@ -14,6 +14,7 @@ mod parser;
 mod metacircular;
 mod cps;
 mod small_step;
+mod rc_stack_simple;
 #[cfg(test)] mod tests;
 
 use std::rc::Rc;
@@ -60,7 +61,7 @@ pub enum Term {
     Cont(Rc<Fn(Rc<Term>, &mut Ctx) -> cps::ContResult>),
 
     // only used by small-step interpreter
-    ReifiedCont(Rc<small_step::Cont>)
+    ReifiedCont(small_step::Cont)
 }
 use Term::*;
 
