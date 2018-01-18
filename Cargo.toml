@@ -1,9 +1,13 @@
 [package]
 name = "unlambda"
 version = "0.1.0"
+authors = ["Vlad Shcherbina <vlad.shcherbina@gmail.com>"]
 
 [dependencies]
+rc_stack = { path = "rc_stack" }
 clap = "*"
 structopt = "*"
 structopt-derive = "*"
 time = "*"
+
+[workspace]

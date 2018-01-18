@@ -9,12 +9,13 @@ use structopt::StructOpt;
 
 extern crate time;
 
+extern crate rc_stack;
+
 mod drop;
 mod parser;
 mod metacircular;
 mod cps;
 mod small_step;
-mod rc_stack_simple;
 #[cfg(test)] mod tests;
 
 use std::rc::Rc;

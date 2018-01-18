@@ -1,0 +1,6 @@
+[package]
+name = "rc_stack"
+version = "0.1.0"
+authors = ["Vlad Shcherbina <vlad.shcherbina@gmail.com>"]
+
+[dependencies]

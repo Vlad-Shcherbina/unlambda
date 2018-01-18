@@ -3,7 +3,7 @@ use EvalResult;
 use Term;
 use Term::*;
 use std::rc::Rc;
-use rc_stack_simple::RcStack;
+use rc_stack::RcStackSimple as RcStack;
 
 #[derive(Clone, Debug)]
 pub enum ContEntry {
