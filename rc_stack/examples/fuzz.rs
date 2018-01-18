@@ -7,15 +7,22 @@ use std::sync::Mutex;
 use std::ops::Deref;
 use rand::Rng;
 use rc_stack::RcStackSimple;
+use rc_stack::RcStack;
 
 struct Var {
     name: char,
-    s: RcStackSimple<i32>,
     v: Vec<i32>,
+    r: RcStackSimple<i32>,
+    s: RcStack<i32>,
 }
 
 fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
     let mut rng = rand::thread_rng();
+
+    let lg = |s: String| {
+        // println!("{}", s);
+        log.lock().unwrap().push(s);
+    };
 
     let mut next_name = b'a';
     let mut new_name = || {
@@ -28,11 +35,12 @@ fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
         let idx = rng.gen_range(0, vars.len() + 1);
         if idx == vars.len() {
             let name = new_name();
-            log.lock().unwrap().push(format!("let {} = RcStack::new();", name));
+            lg(format!("let mut {} = RcStack::new();", name));
             vars.push(Var {
                 name,
-                s: RcStackSimple::new(),
                 v: Vec::new(),
+                r: RcStackSimple::new(),
+                s: RcStack::new(),
             });
             continue;
         }
@@ -40,63 +48,76 @@ fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
             0 => {
                 let var = &mut vars[idx];
                 let elem = rng.gen_range(0, 100);
-                log.lock().unwrap().push(format!("{}.push({});", var.name, elem));
-                var.s.push(elem);
+                lg(format!("{}.push({});", var.name, elem));
                 var.v.push(elem);
+                var.r.push(elem);
+                var.s.push(elem);
             }
             1 => {
                 let var = &vars[idx];
                 let name = new_name();
-                log.lock().unwrap().push(format!("let {} = {}.clone();", name, var.name));
+                lg(format!("let mut {} = {}.clone();", name, var.name));
                 vars.push(Var {
                     name,
-                    s: var.s.clone(),
                     v: var.v.clone(),
+                    r: var.r.clone(),
+                    s: var.s.clone(),
                 });
             }
             2 => {
-                log.lock().unwrap().push(format!("drop({});", vars[idx].name));
+                lg(format!("drop({});", vars[idx].name));
                 vars.remove(idx);
             }
             3 => {
                 let var = &vars[idx];
-                log.lock().unwrap().push(format!("{}.peek();", var.name));
-                let e1 = var.s.peek().cloned();
-                let e2 = var.v.last().cloned();
+                lg(format!("{}.peek();", var.name));
+                let e1 = var.v.last().cloned();
+                let e2 = var.r.peek().cloned();
+                let e3 = var.s.peek().map(|e| e.clone());
                 assert_eq!(e1, e2);
+                assert_eq!(e1, e3);
             }
             4 => {
                 let var = &mut vars[idx];
-                log.lock().unwrap().push(format!("{}.try_pop_unwrap();", var.name));
-                let e1 = var.s.try_pop_unwrap();
-                if e1.is_some() {
-                    assert_eq!(e1, var.v.pop());
+                lg(format!("{}.try_pop_unwrap();", var.name));
+                let e2 = var.r.try_pop_unwrap();
+                let e3 = var.s.try_pop_unwrap();
+                assert_eq!(e2, e3);
+                if e2.is_some() {
+                    assert_eq!(e2, var.v.pop());
                 }
             }
             5 => {
                 let var = &mut vars[idx];
-                log.lock().unwrap().push(format!("{}.pop_clone();", var.name));
-                let e1 = var.s.pop_clone();
-                let e2 = var.v.pop();
+                lg(format!("{}.pop_clone();", var.name));
+                let e1 = var.v.pop();
+                let e2 = var.r.pop_clone();
+                let e3 = var.s.pop_clone();
                 assert_eq!(e1, e2);
+                assert_eq!(e1, e3);
             }
             6 => {
                 let var = &mut vars[idx];
-                log.lock().unwrap().push(format!("{}.discard_top();", var.name));
-                var.s.discard_top();
-                var.v.pop();
+                lg(format!("{}.discard_top();", var.name));
+                let e1 = var.v.pop().is_some();
+                let e2 = var.r.discard_top();
+                let e3 = var.s.discard_top();
+                assert_eq!(e1, e2);
+                assert_eq!(e1, e3);
             }
             7 => {
                 let var = &vars[idx];
-                log.lock().unwrap().push(format!("{}.is_empty();", var.name));
-                let e1 = var.s.is_empty();
-                let e2 = var.v.is_empty();
+                lg(format!("{}.is_empty();", var.name));
+                let e1 = var.v.is_empty();
+                let e2 = var.r.is_empty();
+                let e3 = var.s.is_empty();
                 assert_eq!(e1, e2);
+                assert_eq!(e1, e3);
             }
             _ => panic!()
         }
     }
-    log.lock().unwrap().push(String::from("done"));
+    lg(String::from("done"));
 }
 
 fn main() {
