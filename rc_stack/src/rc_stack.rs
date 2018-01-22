@@ -33,6 +33,30 @@ impl<T> RcStack<T> {
         RcStack(None)
     }
 
+    /// Panics if internal invariants are violated,
+    /// returns size of the top block and the number
+    /// of blocks in the chain.
+    pub fn check(&self) -> (usize, usize) {
+        let block_size = if let Some((ref b, _idx)) = self.0 {
+            b.items.borrow().len()
+        } else {
+            0
+        };
+        let mut num_blocks = 0;
+        let mut p = self;
+        while let Some((ref b, idx)) = p.0 {
+            num_blocks += 1;
+            let items = b.items.borrow();
+            assert!(idx < items.len());
+            assert!(!items.is_empty());
+            assert!(items.last().unwrap().1 > 0);
+            assert_eq!(Rc::strong_count(&b), items.iter().map(|i| i.1).sum());
+
+            p = &b.tail;
+        }
+        (block_size, num_blocks)
+    }
+
     pub fn peek(&self) -> Option<Ref<T>> {
         match self.0 {
             Some((ref block, idx)) => {
@@ -161,6 +185,9 @@ mod tests {
         let mut b = RcStack::clone(&a);
         b.push(20);
 
+        assert_eq!(a.check(), (2, 1));
+        assert_eq!(b.check(), (2, 1));
+
         assert_eq!(a.pop_clone(), Some(10));
         assert_eq!(a.pop_clone(), None);
         assert_eq!(a.pop_clone(), None);
@@ -180,5 +207,6 @@ mod tests {
             t.push(42);
             s.push(i);
         }
+        assert_eq!(s.check(), (1, 1_000_000));
     }
 }

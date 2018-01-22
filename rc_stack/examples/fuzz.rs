@@ -44,7 +44,7 @@ fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
             });
             continue;
         }
-        match rng.gen_range(0, 8) {
+        match rng.gen_range(0, 9) {
             0 => {
                 let var = &mut vars[idx];
                 let elem = rng.gen_range(0, 100);
@@ -113,6 +113,11 @@ fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
                 let e3 = var.s.is_empty();
                 assert_eq!(e1, e2);
                 assert_eq!(e1, e3);
+            }
+            8 => {
+                let var = &vars[idx];
+                lg(format!("{}.check();", var.name));
+                var.s.check();
             }
             _ => panic!()
         }
