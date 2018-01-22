@@ -9,7 +9,6 @@ use rc_stack::RcStack;
 pub enum ContEntry {
     Cont1(Rc<Term>),
     Cont2(Rc<Term>),
-    Eval,
 }
 use self::ContEntry::*;
 
@@ -24,7 +23,7 @@ Call graph:
     apply         calls  eval_of_apply, cont
     cont1         calls  eval, cont
     cont2         calls  apply
-    cont          is     cont0, cont1, cont2, eval
+    cont          is     cont0, cont1, cont2
 
 To break recursion, the following calls are mediated by the outer loop:
     eval -> cont
@@ -47,7 +46,6 @@ fn resume(mut cont: Cont, value: Rc<Term>, ctx: &mut Ctx) -> ContResult {
             }
         }
         Some(Cont2(ref ef)) => apply(Rc::clone(ef), value, cont, ctx),
-        Some(Eval) => eval(value, cont),
     }
 }
 
@@ -140,9 +138,8 @@ fn apply(f: Rc<Term>, x: Rc<Term>, cont: Cont, ctx: &mut Ctx) -> ContResult {
 }
 
 pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
-    let mut cont = RcStack::new();  // cont0
-    cont.push(Eval);
-    let mut r: ContResult = Ok((cont, term));
+    let cont0 = RcStack::new();
+    let mut r: ContResult = eval(term, cont0);
     loop {
         match r {
             Ok((cont, term)) =>

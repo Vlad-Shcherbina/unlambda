@@ -27,7 +27,6 @@ fn deconstruct_term(mut t: Term, terms: &mut Vec<Rc<Term>>) {
                 while let Some(ce) = c.try_pop_unwrap() {
                     match ce {
                         Cont1(x) | Cont2(x) => terms.push(x),
-                        Eval => {}
                     }
                 }
                 drop(mem::replace(c, mem::uninitialized()))
