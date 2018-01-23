@@ -17,14 +17,20 @@ struct Block<T> {
 
 impl<T> Drop for RcStack<T> {
     fn drop(&mut self) {
-        if let Some((block, idx)) = self.0.take() {
-            let mut items = block.items.borrow_mut();
-            items[idx].1 -= 1;
-            while !items.is_empty() && items[items.len() - 1].1 == 0 {
-                items.pop();
+        let mut link = self.0.take();
+        while let Some((block, idx)) = link {
+            {
+                let mut items = block.items.borrow_mut();
+                items[idx].1 -= 1;
+                while !items.is_empty() && items[items.len() - 1].1 == 0 {
+                    items.pop();
+                }
+            }
+            match Rc::try_unwrap(block) {
+                Ok(ref mut block) => link = block.tail.0.take(),
+                Err(_) => break,
             }
         }
-        // TODO: avoid recursion
     }
 }
 
@@ -199,7 +205,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]  // TODO
     fn drop_is_non_recursive() {
         let mut s = RcStack::new();
         for i in 0..1_000_000 {
