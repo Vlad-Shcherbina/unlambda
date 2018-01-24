@@ -4,7 +4,7 @@ use std::cell::{RefCell, Ref};
 use std::mem;
 
 // TODO: remove Debug trait bound everywhere
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct RcStack<T>(Link<T>);
 
 type Link<T> = Option<(Rc<Block<T>>, usize)>;
@@ -56,7 +56,7 @@ impl<T> RcStack<T> {
             assert!(idx < items.len());
             assert!(!items.is_empty());
             assert!(items.last().unwrap().1 > 0);
-            assert_eq!(Rc::strong_count(&b), items.iter().map(|i| i.1).sum());
+            assert_eq!(Rc::strong_count(b), items.iter().map(|i| i.1).sum());
 
             p = &b.tail;
         }
@@ -146,13 +146,13 @@ impl<T> RcStack<T> {
     ///
     /// Somewhat similar to Rc::try_unwrap().
     pub fn try_pop_unwrap(&mut self) -> Option<T> {
-        self.pop_and_apply(false, |elem| Some(elem), |&_| None, || None)
+        self.pop_and_apply(false, Some, |&_| None, || None)
     }
 }
 
 impl<T: Clone> RcStack<T> {
     pub fn pop_clone(&mut self) -> Option<T> {
-        let result = self.pop_and_apply(true, |elem| Some(elem), |r| Some(r.clone()), || None);
+        let result = self.pop_and_apply(true, Some, |r| Some(r.clone()), || None);
         if let Some(ref q) = self.0 {
             assert!(!q.0.items.borrow().is_empty());
         }

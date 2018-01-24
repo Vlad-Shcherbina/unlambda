@@ -90,8 +90,7 @@ impl ToString for Term {
             Reprint => String::from("|"),
             E => String::from("e"),
             C => String::from("c"),
-            Cont(_) => String::from("<cont>"),
-            ReifiedCont(_) => String::from("<cont>"),
+            Cont(_) | ReifiedCont(_) => String::from("<cont>"),
             Apply(ref f, ref x) => format!("`{}{}", f.to_string(), x.to_string()),
         }
     }

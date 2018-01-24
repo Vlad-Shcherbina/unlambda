@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::mem;
 
+#[derive(Default)]
 pub struct RcStack<T>(Option<Rc<(T, RcStack<T>)>>);
 
 impl<T> Drop for RcStack<T> {

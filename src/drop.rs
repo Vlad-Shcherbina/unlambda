@@ -9,19 +9,11 @@ use small_step::ContEntry::*;
 fn deconstruct_term(mut t: Term, terms: &mut Vec<Rc<Term>>) {
     unsafe {
         match t {
-            K1(ref mut x) =>
+            K1(ref mut x) | S1(ref mut x) | Promise(ref mut x) =>
                 terms.push(mem::replace(x, mem::uninitialized())),
-            S1(ref mut x) =>
-                terms.push(mem::replace(x, mem::uninitialized())),
-            S2(ref mut x, ref mut y) => {
+            S2(ref mut x, ref mut y) | Apply(ref mut x, ref mut y) => {
                 terms.push(mem::replace(x, mem::uninitialized()));
                 terms.push(mem::replace(y, mem::uninitialized()));
-            }
-            Promise(ref mut x) =>
-                terms.push(mem::replace(x, mem::uninitialized())),
-            Apply(ref mut f, ref mut x) => {
-                terms.push(mem::replace(f, mem::uninitialized()));
-                terms.push(mem::replace(x, mem::uninitialized()));
             }
             ReifiedCont(ref mut c) => {
                 while let Some(ce) = c.try_pop_unwrap() {
