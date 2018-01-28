@@ -1,9 +1,7 @@
-use std::fmt::Debug;
 use std::rc::Rc;
 use std::cell::{RefCell, Ref};
 use std::mem;
 
-// TODO: remove Debug trait bound everywhere
 #[derive(Default, Debug)]
 pub struct RcStack<T>(Link<T>);
 
@@ -160,7 +158,7 @@ impl<T: Clone> RcStack<T> {
     }
 }
 
-impl<T: Debug> Clone for RcStack<T> {
+impl<T> Clone for RcStack<T> {
     fn clone(&self) -> RcStack<T> {
         if let Some((ref block, idx)) = self.0 {
             block.items.borrow_mut()[idx].1 += 1;
