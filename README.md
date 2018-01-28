@@ -18,4 +18,5 @@ cargo run -- --help
 cargo check --all --examples --tests
 cargo test --all
 cargo run -p rc_stack --example fuzz  # run for a while
+python run_quines.py  # also benchmark
 ```
