@@ -3,8 +3,7 @@
 #![feature(fnbox)]
 
 #[macro_use] extern crate clap;
-extern crate structopt;
-#[macro_use] extern crate structopt_derive;
+#[macro_use] extern crate structopt;
 use structopt::StructOpt;
 
 extern crate time;
@@ -110,8 +109,8 @@ struct Opt {
     // https://github.com/TeXitoi/structopt/issues/42#issuecomment-355751846
     #[structopt(
         long = "interpreter",
-        possible_values_raw = "&Interpreter::variants()",
-        case_insensitive_raw = "true",
+        raw(possible_values = "&Interpreter::variants()"),
+        raw(case_insensitive = "true"),
         default_value = "SmallStep")]
     interpreter: Interpreter,
     #[structopt(long = "time", help = "Print execution time to stderr")]

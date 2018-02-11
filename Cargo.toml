@@ -7,7 +7,6 @@ authors = ["Vlad Shcherbina <vlad.shcherbina@gmail.com>"]
 rc_stack = { path = "rc_stack" }
 clap = "*"
 structopt = "*"
-structopt-derive = "*"
 time = "*"
 
 [workspace]
