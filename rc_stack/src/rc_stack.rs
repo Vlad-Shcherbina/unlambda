@@ -22,6 +22,7 @@ impl<T> Drop for RcStack<T> {
                 items[idx].1 -= 1;
                 while !items.is_empty() && items[items.len() - 1].1 == 0 {
                     items.pop();
+                    // TODO: downsize when too much capacity is wasted
                 }
             }
             match Rc::try_unwrap(block) {
@@ -94,7 +95,25 @@ impl<T> RcStack<T> {
         self.0.is_none()
     }
 
-    fn pop_and_apply<UF, SF, EF, R>(&mut self, pop_shared: bool, unique_fn: UF, shared_fn: SF, empty_fn: EF) -> R
+    /// Attempts to pop an element from a stack and apply a function
+    /// to it. If the stack is empty, calls `empty_fn()`, if the
+    /// top element is unique (not shared with other stacks) calls
+    /// `unique_fn()`, and if it's shared, calls `shared_fn()`.
+    /// If the element is shared and `pop_shared` is `false`,
+    /// it leaves the element in the stack.
+    ///
+    /// This monstrosity is to avoid code duplication between
+    /// `discard_top()`, `try_pop_unwrap()`, and `pop_clone()`.
+    //
+    // It's infeasible to factor out the second part (incrementing ref count
+    // for the next element) without introducing second `borrow_mut()`
+    // and sacrificing performance.
+    fn pop_and_apply<UF, SF, EF, R>(
+        &mut self,
+        pop_shared: bool,
+        unique_fn: UF,
+        shared_fn: SF,
+        empty_fn: EF) -> R
     where
         UF: FnOnce(T) -> R,
         SF: FnOnce(&T) -> R,
