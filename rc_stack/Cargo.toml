@@ -6,4 +6,4 @@ authors = ["Vlad Shcherbina <vlad.shcherbina@gmail.com>"]
 [dependencies]
 
 [dev-dependencies]
-rand = "0.4"
+rand = "*"
