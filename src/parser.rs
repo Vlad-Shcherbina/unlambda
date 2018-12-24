@@ -1,6 +1,6 @@
 use std::rc::Rc;
-use Term;
-use Term::*;
+use crate::Term;
+use crate::Term::*;
 
 pub fn parse_str(s: &str) -> Result<Rc<Term>, String> {
     let mut path: Vec<Option<Rc<Term>>> = Vec::new();

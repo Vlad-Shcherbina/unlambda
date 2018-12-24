@@ -1,7 +1,7 @@
-use Ctx;
-use EvalResult;
-use Term;
-use Term::*;
+use crate::Ctx;
+use crate::EvalResult;
+use crate::Term;
+use crate::Term::*;
 use std::rc::Rc;
 use rc_stack::RcStack;
 

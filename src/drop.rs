@@ -1,10 +1,10 @@
 // Default recursive drop overflows stack.
 
-use Term;
-use Term::*;
+use crate::Term;
+use crate::Term::*;
 use std::rc::Rc;
 use std::mem;
-use small_step::ContEntry::*;
+use crate::small_step::ContEntry::*;
 
 fn deconstruct_term(mut t: Term, terms: &mut Vec<Rc<Term>>) {
     unsafe {
@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn deep_reified_cont() {
-        use small_step::Cont;
+        use crate::small_step::Cont;
 
         let mut c = Cont::new();
         for _ in 0..1_000_000 {

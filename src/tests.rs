@@ -1,5 +1,5 @@
 use super::*;
-use parser::parse_str;
+use crate::parser::parse_str;
 
 fn run_and_expect(
         eval: &Fn(Rc<Term>, &mut Ctx) -> EvalResult,

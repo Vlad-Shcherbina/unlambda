@@ -1,8 +1,3 @@
-#![feature(nll)]
-
-extern crate rc_stack;
-extern crate rand;
-
 use std::sync::Mutex;
 use std::ops::Deref;
 use rand::Rng;

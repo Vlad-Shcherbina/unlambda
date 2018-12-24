@@ -1,13 +1,10 @@
-#![feature(nll)]
 #![feature(fnbox)]
 
+// TODO: Get rid of this once https://github.com/clap-rs/clap/issues/1349 is fixed.
+// https://rust-lang-nursery.github.io/edition-guide/rust-2018/macros/macro-changes.html
 #[macro_use] extern crate clap;
-#[macro_use] extern crate structopt;
+
 use structopt::StructOpt;
-
-extern crate time;
-
-extern crate rc_stack;
 
 mod drop;
 mod parser;
@@ -62,7 +59,7 @@ pub enum Term {
     // only used by small-step interpreter
     ReifiedCont(small_step::Cont)
 }
-use Term::*;
+use crate::Term::*;
 
 impl std::fmt::Debug for Term {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
