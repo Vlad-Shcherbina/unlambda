@@ -1,4 +1,3 @@
-#![feature(io)]
 #![feature(nll)]
 #![feature(fnbox)]
 
@@ -127,7 +126,11 @@ fn main() {
 
     let mut stdout = std::io::stdout();
     let stdin = std::io::stdin();
-    let mut it = stdin.lock().chars().map(|c| c.unwrap());
+    let mut it = stdin.lock().bytes().map(|b| {
+        let b = b.unwrap();
+        assert!(b < 128);
+        b as char
+    });
     let mut ctx = Ctx::new(&mut stdout, &mut it);
 
     let program = parser::parse_str(&program);
