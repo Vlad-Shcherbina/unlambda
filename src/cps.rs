@@ -3,10 +3,9 @@ use crate::EvalResult;
 use crate::Term;
 use crate::Term::*;
 use std::rc::Rc;
-use std::boxed::FnBox;
 
 pub enum ContResult {
-    NextStep(Box<FnBox(&mut Ctx) -> ContResult>),
+    NextStep(Box<FnOnce(&mut Ctx) -> ContResult>),
     Finished(EvalResult),
 }
 
@@ -158,9 +157,7 @@ pub fn full_eval(term: Rc<Term>, ctx: &mut Ctx) -> EvalResult {
     }));
     loop {
         match r {
-            ContResult::NextStep(step) =>
-                // https://github.com/rust-lang/rust/issues/25647
-                r = step.call_box((ctx,)),
+            ContResult::NextStep(step) => r = step(ctx),
             ContResult::Finished(result) => return result,
         }
     }

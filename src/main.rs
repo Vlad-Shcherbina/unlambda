@@ -1,5 +1,3 @@
-#![feature(fnbox)]
-
 // TODO: Get rid of this once https://github.com/clap-rs/clap/issues/1349 is fixed.
 // https://rust-lang-nursery.github.io/edition-guide/rust-2018/macros/macro-changes.html
 #[macro_use] extern crate clap;
