@@ -15,13 +15,13 @@ use std::rc::Rc;
 use std::io::{Write, Read};
 
 pub struct Ctx<'a> {
-    output: &'a mut Write,
-    input: &'a mut Iterator<Item=char>,
+    output: &'a mut dyn Write,
+    input: &'a mut dyn Iterator<Item=char>,
     cur_char: Option<char>,
 }
 
 impl<'a> Ctx<'a> {
-    fn new(output: &'a mut Write, input: &'a mut Iterator<Item=char>) -> Self {
+    fn new(output: &'a mut dyn Write, input: &'a mut dyn Iterator<Item=char>) -> Self {
         Ctx {
             output,
             input,
@@ -52,7 +52,7 @@ pub enum Term {
     Apply(Rc<Term>, Rc<Term>),
 
     // only used by CPS interpreter
-    Cont(Rc<Fn(Rc<Term>, &mut Ctx) -> cps::ContResult>),
+    Cont(Rc<dyn Fn(Rc<Term>, &mut Ctx) -> cps::ContResult>),
 
     // only used by small-step interpreter
     ReifiedCont(small_step::Cont)

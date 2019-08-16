@@ -2,7 +2,7 @@ use super::*;
 use crate::parser::parse_str;
 
 fn run_and_expect(
-        eval: &Fn(Rc<Term>, &mut Ctx) -> EvalResult,
+        eval: &dyn Fn(Rc<Term>, &mut Ctx) -> EvalResult,
         program: &str,
         result: Option<&str>,
         output: Option<&str>) {
@@ -10,7 +10,7 @@ fn run_and_expect(
 }
 
 fn run_with_input_and_expect(
-        eval: &Fn(Rc<Term>, &mut Ctx) -> EvalResult,
+        eval: &dyn Fn(Rc<Term>, &mut Ctx) -> EvalResult,
         program: &str, input: &str,
         result: Option<&str>, output: Option<&str>, remaining_input: Option<&str>) {
     let mut buf = Vec::<u8>::new();

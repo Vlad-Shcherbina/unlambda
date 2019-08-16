@@ -59,7 +59,7 @@ pub fn parse_str(s: &str) -> Result<Rc<Term>, String> {
     Ok(result)
 }
 
-fn skip_comment(it: &mut Iterator<Item=char>) {
+fn skip_comment(it: &mut dyn Iterator<Item=char>) {
     while it.next().unwrap_or('\n') != '\n' {}
 }
 

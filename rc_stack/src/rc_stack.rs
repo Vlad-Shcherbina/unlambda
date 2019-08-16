@@ -86,7 +86,7 @@ impl<T> RcStack<T> {
         let tail = mem::replace(self, RcStack::new());
         let block = Block {
             items: RefCell::new(vec![(elem, 1)]),
-            tail: tail,
+            tail,
         };
         self.0 = Some((Rc::new(block), 0));
     }

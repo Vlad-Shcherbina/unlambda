@@ -5,7 +5,7 @@ use crate::Term::*;
 use std::rc::Rc;
 
 pub enum ContResult {
-    NextStep(Box<FnOnce(&mut Ctx) -> ContResult>),
+    NextStep(Box<dyn FnOnce(&mut Ctx) -> ContResult>),
     Finished(EvalResult),
 }
 
@@ -28,7 +28,7 @@ so there is no more recursion.
 // mechanically derived from metacircular::eval()
 fn eval(
     term: Rc<Term>,
-    cont: Rc<Fn(Rc<Term>, &mut Ctx) -> ContResult>,
+    cont: Rc<dyn Fn(Rc<Term>, &mut Ctx) -> ContResult>,
 ) -> ContResult {
     if let Apply(ref f, ref x) = *term {
         ContResult::NextStep(Box::new({
@@ -74,7 +74,7 @@ fn eval(
 // mechanically derived from metacircular::apply()
 fn apply(
     f: Rc<Term>, x: Rc<Term>, ctx: &mut Ctx,
-    cont: Rc<Fn(Rc<Term>, &mut Ctx) -> ContResult>,
+    cont: Rc<dyn Fn(Rc<Term>, &mut Ctx) -> ContResult>,
 ) -> ContResult {
     if let Apply(_, _) = *f {
         panic!();
