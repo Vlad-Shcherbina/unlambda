@@ -61,7 +61,7 @@ fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
             }
             2 => {
                 lg(format!("drop({});", vars[idx].name));
-                vars.remove(idx);
+                drop(vars.remove(idx));
             }
             3 => {
                 let var = &vars[idx];
