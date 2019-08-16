@@ -52,12 +52,13 @@ fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
                 let var = &vars[idx];
                 let name = new_name();
                 lg(format!("let mut {} = {}.clone();", name, var.name));
-                vars.push(Var {
+                let cloned_var = Var {
                     name,
                     v: var.v.clone(),
                     r: var.r.clone(),
                     s: var.s.clone(),
-                });
+                };
+                vars.push(cloned_var);
             }
             2 => {
                 lg(format!("drop({});", vars[idx].name));
