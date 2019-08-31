@@ -100,11 +100,10 @@ arg_enum! {
 
 #[derive(StructOpt, Debug)]
 struct Opt {
-    // https://github.com/TeXitoi/structopt/issues/42#issuecomment-355751846
     #[structopt(
         long = "interpreter",
-        raw(possible_values = "&Interpreter::variants()"),
-        raw(case_insensitive = "true"),
+        possible_values = &Interpreter::variants(),
+        case_insensitive = true,
         default_value = "SmallStep")]
     interpreter: Interpreter,
     #[structopt(long = "time", help = "Print execution time to stderr")]
