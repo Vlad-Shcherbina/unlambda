@@ -8,7 +8,7 @@ pub fn parse_str(s: &str) -> Result<Rc<Term>, String> {
     let result;
     'outer: loop {
         let leaf = Rc::new(match it.next() {
-            None => Err("unexpected EOF")?,
+            None => return Err("unexpected EOF".to_owned()),
             Some('`') => {
                 path.push(None);
                 continue;
@@ -30,7 +30,7 @@ pub fn parse_str(s: &str) -> Result<Rc<Term>, String> {
                 continue;
             }
             Some(c) if c.is_whitespace() => continue,
-            Some(c) => Err(format!("unrecognized {:?}", c))?,
+            Some(c) => return Err(format!("unrecognized {:?}", c)),
         });
         let mut subtree = leaf;
         loop {
@@ -52,7 +52,7 @@ pub fn parse_str(s: &str) -> Result<Rc<Term>, String> {
         match c {
             '#' => skip_comment(&mut it),
             c if c.is_whitespace() => {}
-            c => Err(format!("unexpected {:?}", c))?
+            c => return Err(format!("unexpected {:?}", c)),
         }
     }
 

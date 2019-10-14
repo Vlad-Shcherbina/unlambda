@@ -39,15 +39,15 @@ fn eval(
                     // cont1
                     move |ef: Rc<Term>, _ctx: &mut Ctx| {
                         if let D = *ef {
-                            return ContResult::NextStep(Box::new({
+                            ContResult::NextStep(Box::new({
                                 let cont = Rc::clone(&cont);
                                 let x = Rc::clone(&x);
                                 move |ctx: &mut Ctx| {
                                     cont(Rc::new(Promise(x)), ctx)
                                 }
-                            }));
+                            }))
                         } else {
-                            return eval(Rc::clone(&x), Rc::new({
+                            eval(Rc::clone(&x), Rc::new({
                                 let cont = Rc::clone(&cont);
                                 // cont2
                                 move |ex: Rc<Term>, _ctx: &mut Ctx| {
@@ -58,7 +58,7 @@ fn eval(
                                             apply(ef, ex, ctx, Rc::clone(&cont))
                                     }))
                                 }
-                            }));
+                            }))
                         }
                     }
                 ))
