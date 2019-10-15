@@ -22,7 +22,7 @@ fn run_with_input_and_expect(
             .to_string()
     };
     if let Some(result) = result {
-        assert_eq!(&actual_result.to_string(), result);
+        assert_eq!(&actual_result, result);
     }
     if let Some(output) = output {
         assert_eq!(std::str::from_utf8(&buf).unwrap(), output);
