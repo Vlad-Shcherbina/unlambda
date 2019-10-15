@@ -37,15 +37,21 @@ fn deconstruct_term(mut t: Term, terms: &mut Vec<Rc<Term>>) {
     }
 }
 
+thread_local! {
+    pub static DROP_QUEUE: std::cell::RefCell<Vec<Rc<Term>>> = Default::default();
+}
+
 impl Drop for Term {
     fn drop(&mut self) {
-        let mut terms = Vec::new();
-        deconstruct_term(std::mem::replace(self, K), &mut terms);
-        while let Some(p) = terms.pop() {
-            if let Ok(t) = Rc::try_unwrap(p) {
-                deconstruct_term(t, &mut terms);
+        DROP_QUEUE.with(|drop_queue| {
+            let mut terms = drop_queue.borrow_mut();
+            deconstruct_term(std::mem::replace(self, K), &mut *terms);
+            while let Some(p) = terms.pop() {
+                if let Ok(t) = Rc::try_unwrap(p) {
+                    deconstruct_term(t, &mut terms);
+                }
             }
-        }
+        });
     }
 }
 
