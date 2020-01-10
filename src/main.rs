@@ -2,8 +2,6 @@
 // https://rust-lang-nursery.github.io/edition-guide/rust-2018/macros/macro-changes.html
 #[macro_use] extern crate clap;
 
-use structopt::StructOpt;
-
 mod drop;
 mod parser;
 mod metacircular;
@@ -98,23 +96,20 @@ arg_enum! {
     }
 }
 
-#[derive(StructOpt, Debug)]
-struct Opt {
-    #[structopt(
-        long = "interpreter",
-        possible_values = &Interpreter::variants(),
-        case_insensitive = true,
-        default_value = "SmallStep")]
-    interpreter: Interpreter,
-    #[structopt(long = "time", help = "Print execution time to stderr")]
-    time: bool,
-    file_name: String,
-}
-
 fn main() {
-    let opt = Opt::from_args();
+    let matches = clap::App::new("unlambda")
+        .version(crate_version!())
+        .arg_from_usage("--time 'Print execution time to stderr'")
+        .arg(clap::Arg::from_usage("--interpreter <interpreter>")
+            .possible_values(&Interpreter::variants())
+            .case_insensitive(true)
+            .required(false)
+            .default_value("SmallStep"))
+        .arg_from_usage("<file-name>")
+        .get_matches();
 
-    let mut input = std::fs::File::open(opt.file_name).unwrap();
+    let file_name = matches.value_of("file-name").unwrap();
+    let mut input = std::fs::File::open(file_name).unwrap();
     let mut program = String::new();
     input.read_to_string(&mut program).unwrap();
 
@@ -132,7 +127,8 @@ fn main() {
         Ok(program) => {
             let start = time::precise_time_s();
             {
-                let _ = match opt.interpreter {
+                let interpreter = value_t!(matches.value_of("interpreter"), Interpreter).unwrap();
+                let _ = match interpreter {
                     Interpreter::MetaCircular => {
                         if metacircular::contains_c(&program) {
                             eprintln!("Metacircular interpreter does not support call/cc");
@@ -144,7 +140,7 @@ fn main() {
                     Interpreter::SmallStep => small_step::full_eval(program, &mut ctx),
                 };
             }
-            if opt.time {
+            if matches.is_present("time") {
                 eprintln!("It took {}s", time::precise_time_s() - start);
             }
         }

@@ -6,8 +6,7 @@ edition = "2018"
 
 [dependencies]
 rc_stack = { path = "rc_stack" }
-clap = "*"
-structopt = "*"
+clap = { version = "*", default-features = false }
 time = "*"
 
 [workspace]
