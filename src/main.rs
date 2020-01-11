@@ -125,7 +125,7 @@ fn main() {
     let program = parser::parse_str(&program);
     match program {
         Ok(program) => {
-            let start = time::precise_time_s();
+            let start = std::time::Instant::now();
             {
                 let interpreter = value_t!(matches.value_of("interpreter"), Interpreter).unwrap();
                 let _ = match interpreter {
@@ -141,7 +141,7 @@ fn main() {
                 };
             }
             if matches.is_present("time") {
-                eprintln!("It took {}s", time::precise_time_s() - start);
+                eprintln!("It took {}s", start.elapsed().as_secs_f64());
             }
         }
         Err(e) => {

@@ -7,6 +7,5 @@ edition = "2018"
 [dependencies]
 rc_stack = { path = "rc_stack" }
 clap = { version = "*", default-features = false }
-time = "*"
 
 [workspace]
