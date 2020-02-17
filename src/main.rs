@@ -1,5 +1,5 @@
-// TODO: Get rid of this once https://github.com/clap-rs/clap/issues/1349 is fixed.
-// https://rust-lang-nursery.github.io/edition-guide/rust-2018/macros/macro-changes.html
+// TODO: Get rid of this once clap 3.0 is released
+// https://github.com/clap-rs/clap/issues/1478
 #[macro_use] extern crate clap;
 
 #[cfg(feature = "mimalloc")]
