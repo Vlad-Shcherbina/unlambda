@@ -2,6 +2,10 @@
 // https://rust-lang-nursery.github.io/edition-guide/rust-2018/macros/macro-changes.html
 #[macro_use] extern crate clap;
 
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 mod drop;
 mod parser;
 mod metacircular;
