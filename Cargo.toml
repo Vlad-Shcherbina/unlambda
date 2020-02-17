@@ -8,4 +8,8 @@ edition = "2018"
 rc_stack = { path = "rc_stack" }
 clap = { version = "*", default-features = false }
 
+[profile.release]
+codegen-units = 1
+lto = true
+
 [workspace]
