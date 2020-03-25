@@ -113,9 +113,7 @@ fn main() {
         .get_matches();
 
     let file_name = matches.value_of("file-name").unwrap();
-    let mut input = std::fs::File::open(file_name).unwrap();
-    let mut program = String::new();
-    input.read_to_string(&mut program).unwrap();
+    let program = std::fs::read_to_string(file_name).unwrap();
 
     let mut stdout = std::io::stdout();
     let stdin = std::io::stdin();
