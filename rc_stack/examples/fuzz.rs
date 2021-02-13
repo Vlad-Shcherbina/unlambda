@@ -27,7 +27,7 @@ fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
 
     let mut vars = Vec::new();
     while log.lock().unwrap().len() < max_iterations {
-        let idx = rng.gen_range(0, vars.len() + 1);
+        let idx = rng.gen_range(0 .. vars.len() + 1);
         if idx == vars.len() {
             let name = new_name();
             lg(format!("let mut {} = RcStack::new();", name));
@@ -39,10 +39,10 @@ fn run(max_iterations: usize, log: &Mutex<Vec<String>>) {
             });
             continue;
         }
-        match rng.gen_range(0, 9) {
+        match rng.gen_range(0..9) {
             0 => {
                 let var = &mut vars[idx];
-                let elem = rng.gen_range(0, 100);
+                let elem = rng.gen_range(0..100);
                 lg(format!("{}.push({});", var.name, elem));
                 var.v.push(elem);
                 var.r.push(elem);
