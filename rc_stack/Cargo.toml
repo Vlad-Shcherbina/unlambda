@@ -8,3 +8,6 @@ edition = "2018"
 
 [dev-dependencies]
 rand = "*"
+
+[lib]
+doctest = false
