@@ -44,11 +44,11 @@ thread_local! {
 impl Drop for Term {
     fn drop(&mut self) {
         DROP_QUEUE.with(|drop_queue| {
-            let mut terms = drop_queue.borrow_mut();
-            deconstruct_term(std::mem::replace(self, K), &mut *terms);
+            let terms = &mut drop_queue.borrow_mut();
+            deconstruct_term(std::mem::replace(self, K), terms);
             while let Some(p) = terms.pop() {
                 if let Ok(t) = Rc::try_unwrap(p) {
-                    deconstruct_term(t, &mut terms);
+                    deconstruct_term(t, terms);
                 }
             }
         });
