@@ -6,8 +6,8 @@ edition = "2021"
 
 [dependencies]
 rc_stack = { path = "rc_stack" }
-clap = { version = "2", default-features = false }
 mimalloc = { version = "*", default-features = false, optional = true }
+pico-args = { version = "*", features = ["eq-separator"] }
 
 [profile.release]
 codegen-units = 1

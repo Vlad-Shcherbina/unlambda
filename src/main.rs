@@ -1,7 +1,3 @@
-// TODO: Get rid of this once clap 3.0 is released
-// https://github.com/clap-rs/clap/issues/1478
-#[macro_use] extern crate clap;
-
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -91,29 +87,72 @@ impl ToString for Term {
     }
 }
 
-arg_enum! {
-    #[derive(Debug)]
-    enum Interpreter {
-        MetaCircular,
-        CPS,
-        SmallStep
+#[derive(Debug)]
+enum Interpreter {
+    MetaCircular,
+    Cps,
+    SmallStep
+}
+
+#[derive(Debug)]
+struct Opts {
+    file_name: String,
+    interpreter: Interpreter,
+    time: bool,
+}
+
+impl Opts {
+    fn parse(mut pargs: pico_args::Arguments) -> Result<Opts, pico_args::Error> {
+        let interpreter: Interpreter = pargs.opt_value_from_fn("--interpreter", |s| {
+            match s.to_ascii_lowercase().as_str() {
+                "metacircular" => Ok(Interpreter::MetaCircular),
+                "cps" => Ok(Interpreter::Cps),
+                "smallstep" => Ok(Interpreter::SmallStep),
+                _ => Err("unrecognized interpreter"),
+            }
+        })?.unwrap_or(Interpreter::SmallStep);
+        let time: bool = pargs.contains("--time");
+        let file_name: String = pargs.free_from_str()?;
+
+        let remaining = pargs.finish();
+        if !remaining.is_empty() {
+            eprintln!("warning: unused arguments {:?}", remaining);
+        }
+        Ok(Opts {
+            file_name,
+            interpreter,
+            time,
+        })
     }
 }
 
-fn main() {
-    let matches = clap::App::new("unlambda")
-        .version(crate_version!())
-        .arg_from_usage("--time 'Print execution time to stderr'")
-        .arg(clap::Arg::from_usage("--interpreter <interpreter>")
-            .possible_values(&Interpreter::variants())
-            .case_insensitive(true)
-            .required(false)
-            .default_value("SmallStep"))
-        .arg_from_usage("<file-name>")
-        .get_matches();
+const USAGE: &str =
+"USAGE:
+    unlambda.exe [--time] [--interpreter=...] <file-name>
 
-    let file_name = matches.value_of("file-name").unwrap();
-    let program = std::fs::read_to_string(file_name).unwrap();
+    --time
+        Print execution time to stderr
+
+    --interpreter <interpreter>
+        Possible values: MetaCircular, CPS, SmallStep (default)
+";
+
+fn main() {
+    let mut pargs = pico_args::Arguments::from_env();
+    if pargs.contains(["-h", "--help"]) {
+        eprintln!("{}", USAGE);
+        std::process::exit(0);
+    }
+    let opts = match Opts::parse(pargs) {
+        Ok(opts) => opts,
+        Err(e) => {
+            eprintln!("{}", USAGE);
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let program = std::fs::read_to_string(&opts.file_name).unwrap();
 
     let mut stdout = std::io::stdout();
     let stdin = std::io::stdin();
@@ -129,8 +168,7 @@ fn main() {
         Ok(program) => {
             let start = std::time::Instant::now();
             {
-                let interpreter = value_t!(matches.value_of("interpreter"), Interpreter).unwrap();
-                let _ = match interpreter {
+                let _ = match opts.interpreter {
                     Interpreter::MetaCircular => {
                         if metacircular::contains_c(&program) {
                             eprintln!("Metacircular interpreter does not support call/cc");
@@ -138,11 +176,11 @@ fn main() {
                         }
                         metacircular::eval(program, &mut ctx)
                     }
-                    Interpreter::CPS => cps::full_eval(program, &mut ctx),
+                    Interpreter::Cps => cps::full_eval(program, &mut ctx),
                     Interpreter::SmallStep => small_step::full_eval(program, &mut ctx),
                 };
             }
-            if matches.is_present("time") {
+            if opts.time {
                 eprintln!("It took {}s", start.elapsed().as_secs_f64());
             }
         }
