@@ -20,12 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: nightly
-            profile: minimal
-            components: clippy
-            override: true
+      - run: |
+          rustup install nightly
+          rustup default nightly
+          rustup component add clippy
+          cargo --version
+          cargo clippy --version
 
       - uses: Swatinem/rust-cache@v2
 
